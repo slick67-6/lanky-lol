@@ -1,64 +1,112 @@
-import Image from "next/image";
+import { FadeIn } from "@/components/fade-in";
+import { ParticlesBackground } from "@/components/particles-background";
+import { ScrollArrow } from "@/components/scroll-arrow";
+import { ToolCard } from "@/components/tool-card";
+import { WordReveal } from "@/components/word-reveal";
+
+function ImageIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
+      <path
+        d="M3 16l5-5 4 4 3-3 6 6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M16 4v4h4" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M9 13h6M9 17h4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="relative min-h-dvh w-full bg-[#030712] text-slate-100">
+      <ParticlesBackground />
+
+      <main className="relative z-10">
+        {/* Hero */}
+        <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 pb-16 pt-12 text-center snap-start">
+          <FadeIn>
+            <p className="mb-6 text-xs font-medium uppercase tracking-[0.35em] text-cyan-500/90">
+              lanky.lol
+            </p>
+          </FadeIn>
+          <WordReveal text="Tool for the fools" wordDelay={280} />
+          <FadeIn delay={120}>
+            <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
+              The lankiest and most jankiest tools — brought to you by the
+              langster gangster. Scroll for the good stuff.
+            </p>
+          </FadeIn>
+          <FadeIn delay={200}>
+            <ScrollArrow />
+          </FadeIn>
+        </section>
+
+        {/* Tools */}
+        <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 py-20 snap-start">
+          <FadeIn>
+            <h2 className="font-[family-name:var(--font-syne)] text-center text-2xl font-semibold text-cyan-100/90 sm:text-3xl">
+              Pick your weapon
+            </h2>
+          </FadeIn>
+          <FadeIn delay={80}>
+            <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
+              Two analysers. One works now. One is cooking.
+            </p>
+          </FadeIn>
+
+          <div className="mt-14 flex w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-10">
+            <FadeIn delay={120} className="flex w-full justify-center">
+              <ToolCard
+                href="/analyser/image"
+                title="AI Image Analyser"
+                description="Upload or paste any image, ask questions, get real vision-powered answers."
+                icon={<ImageIcon />}
+                badge="Live"
+              />
+            </FadeIn>
+            <FadeIn delay={200} className="flex w-full justify-center">
+              <ToolCard
+                href="/analyser/document"
+                title="AI Document Analyser"
+                description="PDFs, docs, and walls of text — a dedicated UI is on the way. Peek inside for the roadmap."
+                icon={<DocumentIcon />}
+                badge="Soon"
+              />
+            </FadeIn>
+          </div>
+        </section>
       </main>
     </div>
   );
