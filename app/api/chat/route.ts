@@ -104,6 +104,14 @@ export async function POST(request: Request) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Model request failed.";
+
+    if (/429|too\s+many\s+requests|rate\s*limit/i.test(message)) {
+      return NextResponse.json(
+        { error: "Too many requests, please wait." },
+        { status: 429 },
+      );
+    }
+
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
