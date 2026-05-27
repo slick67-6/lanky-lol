@@ -36,16 +36,6 @@ export async function POST(request: Request) {
   }
 
 
-  if (!apiKey.startsWith("AIza")) {
-    return NextResponse.json(
-      {
-        error:
-          "GEMINI_API_KEY looks invalid. Set only GEMINI_API_KEY in your server env (no extra quotes, no other AI key vars).",
-      },
-      { status: 500 },
-    );
-  }
-
   let body: {
     messages?: ClientMessage[];
     image?: string | null;
