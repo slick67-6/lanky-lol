@@ -11,6 +11,12 @@ type Message = {
   imagePreview?: string;
 };
 
+type ImageContextMetadata = {
+  createdAt: string;
+  userPrompt: string;
+  assistantSummary: string;
+};
+
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
   const pattern = /(\*\*[^*\n]+\*\*|\$[^$\n]+\$|`[^`\n]+`)/g;
@@ -106,6 +112,7 @@ export default function ImageAnalyserPage() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageContext, setImageContext] = useState<ImageContextMetadata | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -114,14 +121,26 @@ export default function ImageAnalyserPage() {
     const messageId = crypto.randomUUID();
     setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
 
-    const step = reply.length > 2400 ? 10 : reply.length > 1200 ? 8 : 5;
-    const frameDelay = reply.length > 2400 ? 14 : 18;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+      );
+      return;
+    }
+
+    const step = reply.length > 2400 ? 12 : reply.length > 1200 ? 9 : 6;
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, content: next } : m)),
       );
-      await new Promise((resolve) => setTimeout(resolve, frameDelay));
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
     }
   }, []);
 
@@ -171,6 +190,18 @@ export default function ImageAnalyserPage() {
         content: m.content,
       }));
 
+      if (!imageToSend && imageContext) {
+        const lastUserIndex = [...apiMessages]
+          .reverse()
+          .findIndex((m) => m.role === "user");
+        const resolvedUserIndex =
+          lastUserIndex === -1 ? -1 : apiMessages.length - 1 - lastUserIndex;
+        if (resolvedUserIndex >= 0) {
+          const baseContent = apiMessages[resolvedUserIndex].content;
+          apiMessages[resolvedUserIndex].content = `${baseContent}\n\n[Image context metadata from ${imageContext.createdAt}:\nUser prompt: ${imageContext.userPrompt}\nImage analysis summary: ${imageContext.assistantSummary}]`;
+        }
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,6 +215,14 @@ export default function ImageAnalyserPage() {
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
       await animateAssistantReply(data.reply ?? "");
+
+      if (imageToSend) {
+        setImageContext({
+          createdAt: new Date().toISOString(),
+          userPrompt: text || "(Image attached)",
+          assistantSummary: (data.reply ?? "").slice(0, 600),
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -221,14 +260,14 @@ export default function ImageAnalyserPage() {
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
         >
-          <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
             {messages.map((m) => (
               <div
                 key={m.id}
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[85%] sm:text-base ${
+                  className={`max-w-[96%] rounded-2xl px-3.5 py-3 text-sm leading-relaxed sm:max-w-[85%] sm:px-4 sm:text-base ${
                     m.role === "user"
                       ? "border border-cyan-500/30 bg-cyan-950/60 text-cyan-50"
                       : "border border-slate-700/60 bg-slate-900/70 text-slate-200"
@@ -289,6 +328,14 @@ export default function ImageAnalyserPage() {
             >
               Remove image
             </button>
+          </div>
+        )}
+
+        {imageContext && !pendingImage && (
+          <div className="relative z-10 mx-auto w-full max-w-3xl px-4 pb-2">
+            <p className="rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-3 py-2 text-xs text-cyan-200/90">
+              Image context saved for follow-up questions from {new Date(imageContext.createdAt).toLocaleString()}.
+            </p>
           </div>
         )}
 
