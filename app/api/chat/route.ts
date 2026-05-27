@@ -7,6 +7,11 @@ type ClientMessage = {
   content: string;
 };
 
+type ImagePayload = {
+  mimeType: string;
+  data: string;
+};
+
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL =
   process.env.NVIDIA_MODEL?.trim() || "meta/llama-4-maverick-17b-128e-instruct";
@@ -14,6 +19,12 @@ const NVIDIA_MODEL =
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
 Respond helpfully and conversationally like a modern LLM — do not echo or repeat the user's message back.
 Be concise unless they ask for detail. Stay safe and refuse harmful requests.`;
+
+function parseDataUrl(dataUrl: string): ImagePayload | null {
+  const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl);
+  if (!match) return null;
+  return { mimeType: match[1], data: match[2] };
+}
 
 export async function POST(request: Request) {
   const rawApiKey = process.env.NVIDIA_API_KEY;
@@ -53,20 +64,52 @@ export async function POST(request: Request) {
     );
   }
 
-  if (image) {
-    return NextResponse.json(
-      {
-        error:
-          "Image input is temporarily unavailable on the NVIDIA Llama endpoint. Send text only for now.",
-      },
-      { status: 400 },
-    );
-  }
-
-  const nvidiaMessages = [
+  const nvidiaMessages: Array<
+    | { role: "system"; content: string }
+    | {
+        role: "user" | "assistant";
+        content:
+          | string
+          | Array<
+              | { type: "text"; text: string }
+              | {
+                  type: "image_url";
+                  image_url: { url: string; detail: "auto" };
+                }
+            >;
+      }
+  > = [
     { role: "system", content: SYSTEM },
     ...messages.map((m) => ({ role: m.role, content: m.content })),
   ];
+
+  if (image) {
+    const parsed = parseDataUrl(image);
+    if (!parsed) {
+      return NextResponse.json(
+        { error: "Invalid image data." },
+        { status: 400 },
+      );
+    }
+
+    const lastIndex = nvidiaMessages.length - 1;
+    const last = nvidiaMessages[lastIndex];
+    if (last && last.role === "user") {
+      nvidiaMessages[lastIndex] = {
+        role: "user",
+        content: [
+          { type: "text", text: typeof last.content === "string" ? last.content : "" },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${parsed.mimeType};base64,${parsed.data}`,
+              detail: "auto",
+            },
+          },
+        ],
+      };
+    }
+  }
 
   try {
     const response = await fetch(NVIDIA_INVOKE_URL, {
