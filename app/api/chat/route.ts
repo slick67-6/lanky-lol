@@ -5,12 +5,28 @@ export const maxDuration = 60;
 type ClientMessage = {
   role: "user" | "assistant";
   content: string;
+  image?: string;
 };
 
 type ImagePayload = {
   mimeType: string;
   data: string;
 };
+
+type NvidiaMessage =
+  | { role: "system"; content: string }
+  | {
+      role: "user" | "assistant";
+      content:
+        | string
+        | Array<
+            | { type: "text"; text: string }
+            | {
+                type: "image_url";
+                image_url: { url: string; detail: "auto" };
+              }
+          >;
+    };
 
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL =
@@ -26,6 +42,33 @@ function parseDataUrl(dataUrl: string): ImagePayload | null {
   return { mimeType: match[1], data: match[2] };
 }
 
+function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
+  return messages.map((message) => {
+    if (message.role === "assistant") {
+      return { role: "assistant", content: message.content };
+    }
+
+    const parsedImage = message.image ? parseDataUrl(message.image) : null;
+    if (!parsedImage) {
+      return { role: "user", content: message.content };
+    }
+
+    return {
+      role: "user",
+      content: [
+        { type: "text", text: message.content },
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${parsedImage.mimeType};base64,${parsedImage.data}`,
+            detail: "auto",
+          },
+        },
+      ],
+    };
+  });
+}
+
 export async function POST(request: Request) {
   const rawApiKey = process.env.NVIDIA_API_KEY;
   const apiKey = rawApiKey?.trim().replace(/^("'])|(["'])$/g, "");
@@ -39,7 +82,6 @@ export async function POST(request: Request) {
 
   let body: {
     messages?: ClientMessage[];
-    image?: string | null;
   };
 
   try {
@@ -48,7 +90,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const { messages = [], image } = body;
+  const { messages = [] } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json(
       { error: "At least one message is required." },
@@ -57,59 +99,17 @@ export async function POST(request: Request) {
   }
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  if (!lastUser?.content?.trim() && !image) {
+  if (!lastUser?.content?.trim() && !lastUser?.image) {
     return NextResponse.json(
       { error: "Send a message or attach an image." },
       { status: 400 },
     );
   }
 
-  const nvidiaMessages: Array<
-    | { role: "system"; content: string }
-    | {
-        role: "user" | "assistant";
-        content:
-          | string
-          | Array<
-              | { type: "text"; text: string }
-              | {
-                  type: "image_url";
-                  image_url: { url: string; detail: "auto" };
-                }
-            >;
-      }
-  > = [
+  const nvidiaMessages: NvidiaMessage[] = [
     { role: "system", content: SYSTEM },
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ...toNvidiaMessages(messages),
   ];
-
-  if (image) {
-    const parsed = parseDataUrl(image);
-    if (!parsed) {
-      return NextResponse.json(
-        { error: "Invalid image data." },
-        { status: 400 },
-      );
-    }
-
-    const lastIndex = nvidiaMessages.length - 1;
-    const last = nvidiaMessages[lastIndex];
-    if (last && last.role === "user") {
-      nvidiaMessages[lastIndex] = {
-        role: "user",
-        content: [
-          { type: "text", text: typeof last.content === "string" ? last.content : "" },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:${parsed.mimeType};base64,${parsed.data}`,
-              detail: "auto",
-            },
-          },
-        ],
-      };
-    }
-  }
 
   try {
     const response = await fetch(NVIDIA_INVOKE_URL, {
