@@ -5,6 +5,9 @@ import { ToolCard } from "@/components/tool-card";
 import Image from "next/image";
 import { WordReveal } from "@/components/word-reveal";
 
+const SHOW_HERO_IMAGE = false;
+
+
 function ImageIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -72,18 +75,20 @@ export default function Home() {
           <FadeIn delay={1600}>
             <ScrollArrow />
           </FadeIn>
-          <FadeIn delay={1800}>
-            <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
-              <Image
-                src="/langster-gangster.png"
-                alt="Langster gangster at a futuristic workstation"
-                width={820}
-                height={1280}
-                priority
-                className="h-[300px] w-full object-cover object-center sm:h-[380px]"
-              />
-            </div>
-          </FadeIn>
+          {SHOW_HERO_IMAGE && (
+            <FadeIn delay={1800}>
+              <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
+                <Image
+                  src="/langster-gangster.png"
+                  alt="Langster gangster at a futuristic workstation"
+                  width={820}
+                  height={1280}
+                  priority
+                  className="h-[300px] w-full object-cover object-center sm:h-[380px]"
+                />
+              </div>
+            </FadeIn>
+          )}
 
         </section>
 
