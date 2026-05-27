@@ -18,11 +18,14 @@ export function WordReveal({
   const [visibleCount, setVisibleCount] = useState(0);
   const [instant, setInstant] = useState(false);
   const lastScrollY = useRef(0);
-  const lastScrollTime = useRef(Date.now());
+  const lastScrollTime = useRef(0);
 
   useEffect(() => {
+    lastScrollTime.current = performance.now();
+    lastScrollY.current = window.scrollY;
+
     const onScroll = () => {
-      const now = Date.now();
+      const now = performance.now();
       const dy = Math.abs(window.scrollY - lastScrollY.current);
       const dt = now - lastScrollTime.current;
       if (dt > 0 && dy / dt > 1.8) {

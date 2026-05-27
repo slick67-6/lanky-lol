@@ -9,6 +9,20 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   imagePreview?: string;
+  imageMetadata?: {
+    capturedAt: string;
+    source: "upload" | "paste";
+  };
+};
+
+type ApiMessage = {
+  role: "user" | "assistant";
+  content: string;
+  image?: string;
+  imageMetadata?: {
+    capturedAt: string;
+    source: "upload" | "paste";
+  };
 };
 
 function renderInline(text: string) {
@@ -104,6 +118,7 @@ export default function ImageAnalyserPage() {
   ]);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingImageSource, setPendingImageSource] = useState<"upload" | "paste">("upload");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -114,14 +129,26 @@ export default function ImageAnalyserPage() {
     const messageId = crypto.randomUUID();
     setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
 
-    const step = reply.length > 2400 ? 10 : reply.length > 1200 ? 8 : 5;
-    const frameDelay = reply.length > 2400 ? 14 : 18;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+      );
+      return;
+    }
+
+    const step = reply.length > 2400 ? 12 : reply.length > 1200 ? 9 : 6;
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, content: next } : m)),
       );
-      await new Promise((resolve) => setTimeout(resolve, frameDelay));
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
     }
   }, []);
 
@@ -134,7 +161,7 @@ export default function ImageAnalyserPage() {
     scrollToBottom();
   }, [messages, loading, scrollToBottom]);
 
-  const attachFile = (file: File) => {
+  const attachFile = (file: File, source: "upload" | "paste" = "upload") => {
     if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
       setError("Please attach an image file.");
       return;
@@ -142,6 +169,7 @@ export default function ImageAnalyserPage() {
     setError(null);
     const reader = new FileReader();
     reader.onload = () => setPendingImage(reader.result as string);
+    setPendingImageSource(source);
     reader.readAsDataURL(file);
   };
 
@@ -155,20 +183,28 @@ export default function ImageAnalyserPage() {
       role: "user",
       content: text || "(Image attached)",
       imagePreview: pendingImage ?? undefined,
+      imageMetadata: pendingImage
+        ? {
+            capturedAt: new Date().toISOString(),
+            source: pendingImageSource,
+          }
+        : undefined,
     };
 
     const nextMessages = [...messages.filter((m) => m.id !== "welcome"), userMsg];
     setMessages(nextMessages);
     setInput("");
-    const imageToSend = pendingImage;
     setPendingImage(null);
+    setPendingImageSource("upload");
     setLoading(true);
     setError(null);
 
     try {
-      const apiMessages = nextMessages.map((m) => ({
+      const apiMessages: ApiMessage[] = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
+        image: m.role === "user" ? m.imagePreview : undefined,
+        imageMetadata: m.role === "user" ? m.imageMetadata : undefined,
       }));
 
       const res = await fetch("/api/chat", {
@@ -176,7 +212,6 @@ export default function ImageAnalyserPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: apiMessages,
-          image: imageToSend,
         }),
       });
 
@@ -184,6 +219,7 @@ export default function ImageAnalyserPage() {
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
       await animateAssistantReply(data.reply ?? "");
+
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -201,7 +237,7 @@ export default function ImageAnalyserPage() {
           const file = item.getAsFile();
           if (file) {
             e.preventDefault();
-            attachFile(file);
+            attachFile(file, "paste");
           }
           break;
         }
@@ -221,14 +257,14 @@ export default function ImageAnalyserPage() {
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
         >
-          <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
             {messages.map((m) => (
               <div
                 key={m.id}
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[85%] sm:text-base ${
+                  className={`max-w-[96%] rounded-2xl px-3.5 py-3 text-sm leading-relaxed sm:max-w-[85%] sm:px-4 sm:text-base ${
                     m.role === "user"
                       ? "border border-cyan-500/30 bg-cyan-950/60 text-cyan-50"
                       : "border border-slate-700/60 bg-slate-900/70 text-slate-200"
@@ -284,7 +320,10 @@ export default function ImageAnalyserPage() {
             />
             <button
               type="button"
-              onClick={() => setPendingImage(null)}
+              onClick={() => {
+                setPendingImage(null);
+                setPendingImageSource("upload");
+              }}
               className="text-xs text-slate-400 hover:text-cyan-300"
             >
               Remove image
@@ -301,7 +340,7 @@ export default function ImageAnalyserPage() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) attachFile(f);
+                if (f) attachFile(f, "upload");
                 e.target.value = "";
               }}
             />
