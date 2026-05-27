@@ -125,7 +125,7 @@ export default function ImageAnalyserPage() {
     <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <SiteHeader title="AI Image Analyser" />
+        <SiteHeader title="AI Image Analyzer" />
 
         <div
           ref={scrollRef}

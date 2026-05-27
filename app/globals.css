@@ -20,7 +20,7 @@ html {
   height: 100%;
   background: var(--bg-deep);
   overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
 }
 
 body {
@@ -31,7 +31,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
 }
 
 /* Prevent white flash on mobile overscroll / fullscreen */
@@ -71,4 +71,11 @@ body > * {
 
 .scroll-snap-section {
   scroll-snap-align: start;
+}
+
+@media (max-width: 768px) {
+  .scroll-snap-section {
+    min-height: auto;
+    scroll-snap-align: none;
+  }
 }
