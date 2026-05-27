@@ -17,8 +17,8 @@ const NVIDIA_MODEL =
   process.env.NVIDIA_MODEL?.trim() || "meta/llama-4-maverick-17b-128e-instruct";
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
-Respond helpfully and conversationally like a modern LLM — do not echo or repeat the user's message back.
-Be concise unless they ask for detail. Stay safe and refuse harmful requests.`;
+Respond naturally with your own style and level of detail based on the user's intent.
+Stay safe and refuse harmful requests.`;
 
 function parseDataUrl(dataUrl: string): ImagePayload | null {
   const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl);
