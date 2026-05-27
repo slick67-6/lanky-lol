@@ -65,8 +65,8 @@ export default function Home() {
           <WordReveal text="Tool for the fools" wordDelay={280} />
           <FadeIn delay={1400}>
             <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              The lankiest and most jankiest tools — brought to you by the
-              langster gangster. Scroll for the good stuff, now smoother on desktop and mobile.
+              The lankiest and most jankiest tools brought to you by the
+              langster gangster, now smoother on desktop and mobile.
             </p>
           </FadeIn>
           <FadeIn delay={1600}>
@@ -91,12 +91,12 @@ export default function Home() {
         <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 py-20 snap-start">
           <FadeIn>
             <h2 className="font-[family-name:var(--font-syne)] text-center text-2xl font-semibold text-cyan-100/90 sm:text-3xl">
-              Pick your weapon
+              Pick your tool
             </h2>
           </FadeIn>
           <FadeIn delay={80}>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
-              Two analyzers. One works now. One is cooking.
+              Two analyzers. One working. One in development.
             </p>
           </FadeIn>
 
