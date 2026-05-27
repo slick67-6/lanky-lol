@@ -11,6 +11,82 @@ type Message = {
   imagePreview?: string;
 };
 
+function renderInline(text: string) {
+  const nodes: React.ReactNode[] = [];
+  const pattern = /(\$[^$\n]+\$|`[^`\n]+`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    if (token.startsWith("$")) {
+      nodes.push(
+        <span key={`${match.index}-math`} className="font-medium italic text-cyan-200">
+          {token.slice(1, -1)}
+        </span>,
+      );
+    } else {
+      nodes.push(
+        <code
+          key={`${match.index}-code`}
+          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
+        >
+          {token.slice(1, -1)}
+        </code>,
+      );
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function AssistantContent({ content }: { content: string }) {
+  const segments = content.split(/```([\s\S]*?)```/g);
+  return (
+    <div className="space-y-2">
+      {segments.map((segment, i) => {
+        if (i % 2 === 1) {
+          return (
+            <pre
+              key={`code-${i}`}
+              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3"
+            >
+              <code className="font-mono text-[0.86em] text-cyan-100">{segment.trim()}</code>
+            </pre>
+          );
+        }
+
+        const lines = segment.split("\n");
+        return (
+          <div key={`txt-${i}`} className="space-y-1 whitespace-pre-wrap">
+            {lines.map((line, idx) => {
+              const blockMath = line.match(/^\$\$([\s\S]+)\$\$$/);
+              if (blockMath) {
+                return (
+                  <p key={idx} className="overflow-x-auto text-center font-semibold italic text-cyan-100">
+                    {blockMath[1]}
+                  </p>
+                );
+              }
+              return <p key={idx}>{renderInline(line)}</p>;
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ImageAnalyserPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -27,6 +103,20 @@ export default function ImageAnalyserPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const animateAssistantReply = useCallback(async (reply: string) => {
+    const messageId = crypto.randomUUID();
+    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
+
+    const step = reply.length > 1200 ? 30 : 16;
+    for (let i = 0; i < reply.length; i += step) {
+      const next = reply.slice(0, i + step);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: next } : m)),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 12));
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -86,14 +176,7 @@ export default function ImageAnalyserPage() {
       const data = (await res.json()) as { reply?: string; error?: string };
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: data.reply ?? "",
-        },
-      ]);
+      await animateAssistantReply(data.reply ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -152,7 +235,11 @@ export default function ImageAnalyserPage() {
                       className="mb-3 max-h-56 w-full rounded-lg object-contain"
                     />
                   )}
-                  <p className="whitespace-pre-wrap">{m.content}</p>
+                  {m.role === "assistant" ? (
+                    <AssistantContent content={m.content} />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                  )}
                 </div>
               </div>
             ))}
