@@ -13,7 +13,7 @@ type Message = {
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\$[^$\n]+\$|`[^`\n]+`)/g;
+  const pattern = /(\*\*[^*\n]+\*\*|\$[^$\n]+\$|`[^`\n]+`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -23,7 +23,13 @@ function renderInline(text: string) {
     }
 
     const token = match[0];
-    if (token.startsWith("$")) {
+    if (token.startsWith("**") && token.endsWith("**")) {
+      nodes.push(
+        <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
+          {token.slice(2, -2)}
+        </strong>,
+      );
+    } else if (token.startsWith("$")) {
       nodes.push(
         <span key={`${match.index}-math`} className="font-medium italic text-cyan-200">
           {token.slice(1, -1)}
@@ -108,13 +114,14 @@ export default function ImageAnalyserPage() {
     const messageId = crypto.randomUUID();
     setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
 
-    const step = reply.length > 1200 ? 30 : 16;
+    const step = reply.length > 2400 ? 10 : reply.length > 1200 ? 8 : 5;
+    const frameDelay = reply.length > 2400 ? 14 : 18;
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, content: next } : m)),
       );
-      await new Promise((resolve) => setTimeout(resolve, 12));
+      await new Promise((resolve) => setTimeout(resolve, frameDelay));
     }
   }, []);
 
