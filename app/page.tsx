@@ -2,6 +2,7 @@ import { FadeIn } from "@/components/fade-in";
 import { ParticlesBackground } from "@/components/particles-background";
 import { ScrollArrow } from "@/components/scroll-arrow";
 import { ToolCard } from "@/components/tool-card";
+import Image from "next/image";
 import { WordReveal } from "@/components/word-reveal";
 
 function ImageIcon() {
@@ -65,12 +66,25 @@ export default function Home() {
           <FadeIn delay={120}>
             <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
               The lankiest and most jankiest tools — brought to you by the
-              langster gangster. Scroll for the good stuff.
+              langster gangster. Scroll for the good stuff, now smoother on desktop and mobile.
             </p>
           </FadeIn>
           <FadeIn delay={200}>
             <ScrollArrow />
           </FadeIn>
+          <FadeIn delay={180}>
+            <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
+              <Image
+                src="/langster-gangster.png"
+                alt="Langster gangster at a futuristic workstation"
+                width={820}
+                height={1280}
+                priority
+                className="h-[300px] w-full object-cover object-center sm:h-[380px]"
+              />
+            </div>
+          </FadeIn>
+
         </section>
 
         {/* Tools */}

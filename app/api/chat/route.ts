@@ -25,10 +25,23 @@ function parseDataUrl(dataUrl: string): ImagePayload | null {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey?.trim().replace(/^(["'])|(["'])$/g, "");
+
   if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY is not configured on the server." },
+      { status: 500 },
+    );
+  }
+
+
+  if (!apiKey.startsWith("AIza")) {
+    return NextResponse.json(
+      {
+        error:
+          "GEMINI_API_KEY looks invalid. Set only GEMINI_API_KEY in your server env (no extra quotes, no other AI key vars).",
+      },
       { status: 500 },
     );
   }
