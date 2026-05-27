@@ -11,6 +11,12 @@ type Message = {
   imagePreview?: string;
 };
 
+type ImageContextMetadata = {
+  createdAt: string;
+  userPrompt: string;
+  assistantSummary: string;
+};
+
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
   const pattern = /(\*\*[^*\n]+\*\*|\$[^$\n]+\$|`[^`\n]+`)/g;
