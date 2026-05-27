@@ -111,6 +111,7 @@ export default function ImageAnalyserPage() {
   const [pendingImageSource, setPendingImageSource] = useState<"upload" | "paste">("upload");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageContext, setImageContext] = useState<ImageContextMetadata | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -196,6 +197,18 @@ export default function ImageAnalyserPage() {
         image: m.role === "user" ? m.imagePreview : undefined,
         imageMetadata: m.role === "user" ? m.imageMetadata : undefined,
       }));
+
+      if (!imageToSend && imageContext) {
+        const lastUserIndex = [...apiMessages]
+          .reverse()
+          .findIndex((m) => m.role === "user");
+        const resolvedUserIndex =
+          lastUserIndex === -1 ? -1 : apiMessages.length - 1 - lastUserIndex;
+        if (resolvedUserIndex >= 0) {
+          const baseContent = apiMessages[resolvedUserIndex].content;
+          apiMessages[resolvedUserIndex].content = `${baseContent}\n\n[Image context metadata from ${imageContext.createdAt}:\nUser prompt: ${imageContext.userPrompt}\nImage analysis summary: ${imageContext.assistantSummary}]`;
+        }
+      }
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -318,6 +331,14 @@ export default function ImageAnalyserPage() {
             >
               Remove image
             </button>
+          </div>
+        )}
+
+        {imageContext && !pendingImage && (
+          <div className="relative z-10 mx-auto w-full max-w-3xl px-4 pb-2">
+            <p className="rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-3 py-2 text-xs text-cyan-200/90">
+              Image context saved for follow-up questions from {new Date(imageContext.createdAt).toLocaleString()}.
+            </p>
           </div>
         )}
 
