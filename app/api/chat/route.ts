@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
+const MODEL_NAME = "gemini-2.0-flash";
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -25,23 +26,14 @@ function parseDataUrl(dataUrl: string): ImagePayload | null {
 }
 
 export async function POST(request: Request) {
-  const rawApiKey = process.env.GEMINI_API_KEY;
-  const apiKey = rawApiKey?.trim().replace(/^(["'])|(["'])$/g, "");
+  const apiKey = process.env.GEMINI_API_KEY?.trim().replace(
+    /^(["'])|(["'])$/g,
+    "",
+  );
 
   if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
-  }
-
-
-  if (!apiKey.startsWith("AIza")) {
-    return NextResponse.json(
-      {
-        error:
-          "GEMINI_API_KEY looks invalid. Set only GEMINI_API_KEY in your server env (no extra quotes, no other AI key vars).",
-      },
       { status: 500 },
     );
   }
@@ -75,7 +67,7 @@ export async function POST(request: Request) {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: MODEL_NAME,
     systemInstruction: SYSTEM,
   });
 

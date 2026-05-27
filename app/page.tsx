@@ -103,7 +103,7 @@ export default function Home() {
           <div className="mt-14 flex w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-10">
             <FadeIn delay={120} className="flex w-full justify-center">
               <ToolCard
-                href="/"
+                href="/analyser/image"
                 title="AI Image Analyzer"
                 description="Upload or paste any image, ask questions, get real vision-powered answers."
                 icon={<ImageIcon />}
