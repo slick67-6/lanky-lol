@@ -57,22 +57,22 @@ export default function Home() {
       <main className="relative z-10">
         {/* Hero */}
         <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 pb-16 pt-12 text-center snap-start">
-          <FadeIn>
+          <FadeIn delay={1200}>
             <p className="mb-6 text-xs font-medium uppercase tracking-[0.35em] text-cyan-500/90">
               lanky.lol
             </p>
           </FadeIn>
           <WordReveal text="Tool for the fools" wordDelay={280} />
-          <FadeIn delay={120}>
+          <FadeIn delay={1400}>
             <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
               The lankiest and most jankiest tools — brought to you by the
               langster gangster. Scroll for the good stuff, now smoother on desktop and mobile.
             </p>
           </FadeIn>
-          <FadeIn delay={200}>
+          <FadeIn delay={1600}>
             <ScrollArrow />
           </FadeIn>
-          <FadeIn delay={180}>
+          <FadeIn delay={1800}>
             <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
               <Image
                 src="/langster-gangster.png"
@@ -96,15 +96,15 @@ export default function Home() {
           </FadeIn>
           <FadeIn delay={80}>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
-              Two analysers. One works now. One is cooking.
+              Two analyzers. One works now. One is cooking.
             </p>
           </FadeIn>
 
           <div className="mt-14 flex w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-10">
             <FadeIn delay={120} className="flex w-full justify-center">
               <ToolCard
-                href="/analyser/image"
-                title="AI Image Analyser"
+                href="/"
+                title="AI Image Analyzer"
                 description="Upload or paste any image, ask questions, get real vision-powered answers."
                 icon={<ImageIcon />}
                 badge="Live"

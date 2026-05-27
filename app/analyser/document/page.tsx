@@ -29,7 +29,7 @@ export default function DocumentAnalyserPage() {
                   prefetch
                   className="rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan-500"
                 >
-                  Open Image Analyser
+                  Open Image Analyzer
                 </Link>
                 <Link
                   href="/"
