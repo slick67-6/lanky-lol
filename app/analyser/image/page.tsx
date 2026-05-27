@@ -11,11 +11,6 @@ type Message = {
   imagePreview?: string;
 };
 
-type ImageContextMetadata = {
-  createdAt: string;
-  userPrompt: string;
-  assistantSummary: string;
-};
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
@@ -112,7 +107,6 @@ export default function ImageAnalyserPage() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageContext, setImageContext] = useState<ImageContextMetadata | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -179,7 +173,6 @@ export default function ImageAnalyserPage() {
     const nextMessages = [...messages.filter((m) => m.id !== "welcome"), userMsg];
     setMessages(nextMessages);
     setInput("");
-    const imageToSend = pendingImage;
     setPendingImage(null);
     setLoading(true);
     setError(null);
@@ -188,26 +181,14 @@ export default function ImageAnalyserPage() {
       const apiMessages = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
+        image: m.role === "user" ? m.imagePreview : undefined,
       }));
-
-      if (!imageToSend && imageContext) {
-        const lastUserIndex = [...apiMessages]
-          .reverse()
-          .findIndex((m) => m.role === "user");
-        const resolvedUserIndex =
-          lastUserIndex === -1 ? -1 : apiMessages.length - 1 - lastUserIndex;
-        if (resolvedUserIndex >= 0) {
-          const baseContent = apiMessages[resolvedUserIndex].content;
-          apiMessages[resolvedUserIndex].content = `${baseContent}\n\n[Image context metadata from ${imageContext.createdAt}:\nUser prompt: ${imageContext.userPrompt}\nImage analysis summary: ${imageContext.assistantSummary}]`;
-        }
-      }
 
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: apiMessages,
-          image: imageToSend,
         }),
       });
 
@@ -216,13 +197,6 @@ export default function ImageAnalyserPage() {
 
       await animateAssistantReply(data.reply ?? "");
 
-      if (imageToSend) {
-        setImageContext({
-          createdAt: new Date().toISOString(),
-          userPrompt: text || "(Image attached)",
-          assistantSummary: (data.reply ?? "").slice(0, 600),
-        });
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -331,13 +305,6 @@ export default function ImageAnalyserPage() {
           </div>
         )}
 
-        {imageContext && !pendingImage && (
-          <div className="relative z-10 mx-auto w-full max-w-3xl px-4 pb-2">
-            <p className="rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-3 py-2 text-xs text-cyan-200/90">
-              Image context saved for follow-up questions from {new Date(imageContext.createdAt).toLocaleString()}.
-            </p>
-          </div>
-        )}
 
         <div className="relative z-10 shrink-0 border-t border-cyan-500/15 bg-[#030712]/90 px-4 py-3 backdrop-blur-md sm:px-6">
           <div className="mx-auto flex max-w-3xl items-end gap-2 sm:gap-3">
