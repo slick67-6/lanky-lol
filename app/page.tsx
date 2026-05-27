@@ -5,6 +5,9 @@ import { ToolCard } from "@/components/tool-card";
 import Image from "next/image";
 import { WordReveal } from "@/components/word-reveal";
 
+const SHOW_HERO_IMAGE = false;
+
+
 function ImageIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -65,25 +68,27 @@ export default function Home() {
           <WordReveal text="Tool for the fools" wordDelay={280} />
           <FadeIn delay={1400}>
             <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-slate-400 sm:text-lg">
-              The lankiest and most jankiest tools — brought to you by the
-              langster gangster. Scroll for the good stuff, now smoother on desktop and mobile.
+              The lankiest and most jankiest tools brought to you by the
+              langster gangster, now smoother on desktop and mobile.
             </p>
           </FadeIn>
           <FadeIn delay={1600}>
             <ScrollArrow />
           </FadeIn>
-          <FadeIn delay={1800}>
-            <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
-              <Image
-                src="/langster-gangster.png"
-                alt="Langster gangster at a futuristic workstation"
-                width={820}
-                height={1280}
-                priority
-                className="h-[300px] w-full object-cover object-center sm:h-[380px]"
-              />
-            </div>
-          </FadeIn>
+          {SHOW_HERO_IMAGE && (
+            <FadeIn delay={1800}>
+              <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
+                <Image
+                  src="/langster-gangster.png"
+                  alt="Langster gangster at a futuristic workstation"
+                  width={820}
+                  height={1280}
+                  priority
+                  className="h-[300px] w-full object-cover object-center sm:h-[380px]"
+                />
+              </div>
+            </FadeIn>
+          )}
 
         </section>
 
@@ -91,12 +96,12 @@ export default function Home() {
         <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 py-20 snap-start">
           <FadeIn>
             <h2 className="font-[family-name:var(--font-syne)] text-center text-2xl font-semibold text-cyan-100/90 sm:text-3xl">
-              Pick your weapon
+              Pick your tool
             </h2>
           </FadeIn>
           <FadeIn delay={80}>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
-              Two analyzers. One works now. One is cooking.
+              Two analyzers. One working. One in development.
             </p>
           </FadeIn>
 
