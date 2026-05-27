@@ -5,6 +5,11 @@ export const maxDuration = 60;
 type ClientMessage = {
   role: "user" | "assistant";
   content: string;
+  image?: string;
+  imageMetadata?: {
+    capturedAt: string;
+    source: "upload" | "paste";
+  };
 };
 
 type ImagePayload = {
@@ -39,7 +44,6 @@ export async function POST(request: Request) {
 
   let body: {
     messages?: ClientMessage[];
-    image?: string | null;
   };
 
   try {
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const { messages = [], image } = body;
+  const { messages = [] } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json(
       { error: "At least one message is required." },
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  if (!lastUser?.content?.trim() && !image) {
+  if (!lastUser?.content?.trim() && !lastUser?.image) {
     return NextResponse.json(
       { error: "Send a message or attach an image." },
       { status: 400 },
@@ -80,25 +84,20 @@ export async function POST(request: Request) {
       }
   > = [
     { role: "system", content: SYSTEM },
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
-  ];
+    ...messages.map((m) => {
+      if (!m.image) {
+        return { role: m.role, content: m.content };
+      }
 
-  if (image) {
-    const parsed = parseDataUrl(image);
-    if (!parsed) {
-      return NextResponse.json(
-        { error: "Invalid image data." },
-        { status: 400 },
-      );
-    }
+      const parsed = parseDataUrl(m.image);
+      if (!parsed) {
+        return { role: m.role, content: m.content };
+      }
 
-    const lastIndex = nvidiaMessages.length - 1;
-    const last = nvidiaMessages[lastIndex];
-    if (last && last.role === "user") {
-      nvidiaMessages[lastIndex] = {
-        role: "user",
+      return {
+        role: m.role,
         content: [
-          { type: "text", text: typeof last.content === "string" ? last.content : "" },
+          { type: "text", text: m.content || "(Image attached)" },
           {
             type: "image_url",
             image_url: {
@@ -108,8 +107,8 @@ export async function POST(request: Request) {
           },
         ],
       };
-    }
-  }
+    }),
+  ];
 
   try {
     const response = await fetch(NVIDIA_INVOKE_URL, {

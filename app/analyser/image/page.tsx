@@ -9,6 +9,10 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   imagePreview?: string;
+  imageMetadata?: {
+    capturedAt: string;
+    source: "upload" | "paste";
+  };
 };
 
 type ImageContextMetadata = {
@@ -110,6 +114,7 @@ export default function ImageAnalyserPage() {
   ]);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingImageSource, setPendingImageSource] = useState<"upload" | "paste">("upload");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageContext, setImageContext] = useState<ImageContextMetadata | null>(null);
@@ -153,7 +158,7 @@ export default function ImageAnalyserPage() {
     scrollToBottom();
   }, [messages, loading, scrollToBottom]);
 
-  const attachFile = (file: File) => {
+  const attachFile = (file: File, source: "upload" | "paste" = "upload") => {
     if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
       setError("Please attach an image file.");
       return;
@@ -161,6 +166,7 @@ export default function ImageAnalyserPage() {
     setError(null);
     const reader = new FileReader();
     reader.onload = () => setPendingImage(reader.result as string);
+    setPendingImageSource(source);
     reader.readAsDataURL(file);
   };
 
@@ -174,13 +180,19 @@ export default function ImageAnalyserPage() {
       role: "user",
       content: text || "(Image attached)",
       imagePreview: pendingImage ?? undefined,
+      imageMetadata: pendingImage
+        ? {
+            capturedAt: new Date().toISOString(),
+            source: pendingImageSource,
+          }
+        : undefined,
     };
 
     const nextMessages = [...messages.filter((m) => m.id !== "welcome"), userMsg];
     setMessages(nextMessages);
     setInput("");
-    const imageToSend = pendingImage;
     setPendingImage(null);
+    setPendingImageSource("upload");
     setLoading(true);
     setError(null);
 
@@ -188,6 +200,8 @@ export default function ImageAnalyserPage() {
       const apiMessages = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
+        image: m.role === "user" ? m.imagePreview : undefined,
+        imageMetadata: m.role === "user" ? m.imageMetadata : undefined,
       }));
 
       if (!imageToSend && imageContext) {
@@ -207,7 +221,6 @@ export default function ImageAnalyserPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: apiMessages,
-          image: imageToSend,
         }),
       });
 
@@ -216,13 +229,6 @@ export default function ImageAnalyserPage() {
 
       await animateAssistantReply(data.reply ?? "");
 
-      if (imageToSend) {
-        setImageContext({
-          createdAt: new Date().toISOString(),
-          userPrompt: text || "(Image attached)",
-          assistantSummary: (data.reply ?? "").slice(0, 600),
-        });
-      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -240,7 +246,7 @@ export default function ImageAnalyserPage() {
           const file = item.getAsFile();
           if (file) {
             e.preventDefault();
-            attachFile(file);
+            attachFile(file, "paste");
           }
           break;
         }
@@ -323,7 +329,10 @@ export default function ImageAnalyserPage() {
             />
             <button
               type="button"
-              onClick={() => setPendingImage(null)}
+              onClick={() => {
+                setPendingImage(null);
+                setPendingImageSource("upload");
+              }}
               className="text-xs text-slate-400 hover:text-cyan-300"
             >
               Remove image
@@ -348,7 +357,7 @@ export default function ImageAnalyserPage() {
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) attachFile(f);
+                if (f) attachFile(f, "upload");
                 e.target.value = "";
               }}
             />
