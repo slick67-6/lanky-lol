@@ -1,0 +1,26 @@
+.confettiPiece {
+  position: absolute;
+  top: var(--confetti-top);
+  left: var(--confetti-left);
+  height: var(--confetti-height);
+  width: var(--confetti-width);
+  border-radius: 999px;
+  background: var(--confetti-color);
+  opacity: 0;
+  transform: translateX(var(--confetti-start-x)) translateY(0) rotate(0deg);
+  animation: confetti-shoot 1100ms cubic-bezier(0.2, 0.85, 0.25, 1) var(--confetti-delay) infinite;
+}
+
+@keyframes confetti-shoot {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--confetti-start-x)) translateY(0) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--confetti-end-x)) translateY(var(--confetti-end-y)) rotate(var(--confetti-rotate));
+  }
+}
