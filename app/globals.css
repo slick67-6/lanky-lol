@@ -23,6 +23,13 @@ html {
   overscroll-behavior-y: auto;
 }
 
+
+/* Keep descenders like “g”, “y”, and “j” from being clipped in the display font. */
+[class~="font-[family-name:var(--font-syne)]"] {
+  line-height: 1.25;
+  padding-bottom: 0.06em;
+}
+
 body {
   min-height: 100%;
   min-height: 100dvh;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -30,7 +30,11 @@ type NvidiaMessage =
 
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const NVIDIA_MODEL =
-  process.env.NVIDIA_MODEL?.trim() || "meta/llama-4-maverick-17b-128e-instruct";
+  process.env.NVIDIA_MODEL?.trim() || "nvidia/llama-3.1-nemotron-nano-vl-8b-v1";
+
+const MODEL_TIMEOUT_MS = 8_500;
+const MAX_HISTORY_MESSAGES = 6;
+const MAX_IMAGE_DATA_LENGTH = 4_500_000;
 
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_IMAGE_DATA_LENGTH = 12_000_000;
@@ -64,6 +68,16 @@ function compactMessagesForModel(messages: ClientMessage[]): ClientMessage[] {
   }));
 }
 
+function getAbortSignal(timeoutMs: number) {
+  if (typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(timeoutMs);
+  }
+
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
 function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
   return messages.map((message) => {
     if (message.role === "assistant") {
@@ -72,7 +86,9 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
 
     const parsedImage = message.image ? parseDataUrl(message.image) : null;
     if (parsedImage && parsedImage.data.length > MAX_IMAGE_DATA_LENGTH) {
-      throw new Error("Please upload a smaller image so the analyzer can read it without hitting token limits.");
+      throw new Error(
+        "Please upload a smaller image so the analyzer can read it without hitting token limits.",
+      );
     }
 
     if (!parsedImage) {
@@ -161,11 +177,12 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: NVIDIA_MODEL,
         messages: nvidiaMessages,
-        max_tokens: 1200,
-        temperature: 0.7,
+        max_tokens: 700,
+        temperature: 0.4,
         top_p: 0.95,
         stream: false,
       }),
+      signal: getAbortSignal(MODEL_TIMEOUT_MS),
     });
 
     if (response.status === 429) {
@@ -185,7 +202,9 @@ export async function POST(request: Request) {
     try {
       data = rawModelResponse ? JSON.parse(rawModelResponse) : {};
     } catch {
-      throw new Error(rawModelResponse.trim() || "Model returned an unreadable response.");
+      throw new Error(
+        rawModelResponse.trim() || "Model returned an unreadable response.",
+      );
     }
 
     if (!response.ok) {
@@ -206,6 +225,19 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Model request failed.";
 
+    if (
+      err instanceof DOMException &&
+      (err.name === "TimeoutError" || err.name === "AbortError")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The image analyzer took too long to respond. Please try a smaller image or shorter question.",
+        },
+        { status: 504 },
+      );
+    }
+
     if (/429|too\s+many\s+requests|rate\s*limit/i.test(message)) {
       return NextResponse.json(
         { error: "Too many requests, please wait." },
@@ -224,7 +256,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: "The image analyzer could not get a model response. Please try again." },
+      {
+        error:
+          "The image analyzer could not get a model response. Please try again.",
+      },
       { status: 502 },
     );
   }

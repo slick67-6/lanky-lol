@@ -12,8 +12,8 @@ type Message = {
 };
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
-const MAX_IMAGE_SIDE = 1100;
-const COMPRESSED_IMAGE_QUALITY = 0.78;
+const MAX_IMAGE_SIDE = 768;
+const COMPRESSED_IMAGE_QUALITY = 0.72;
 
 function canCanvasRead(file: File) {
   return ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"].includes(file.type);
