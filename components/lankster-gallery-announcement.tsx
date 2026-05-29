@@ -11,15 +11,15 @@ const AUTO_CLOSE_DELAY_MS = 7000;
 
 const CONFETTI_COLORS = ["#22d3ee", "#f472b6", "#facc15", "#a78bfa", "#34d399"];
 
-function ConfettiSide({ side }: { side: "left" | "right" }) {
+function ConfettiBurst({ side }: { side: "left" | "right" }) {
   const pieces = useMemo(
     () =>
-      Array.from({ length: 24 }, (_, index) => {
+      Array.from({ length: 22 }, (_, index) => {
         const direction = side === "left" ? 1 : -1;
-        const arc = index % 8;
-        const endX = direction * (140 + arc * 18);
-        const endY = -68 + (index % 6) * 26;
-        const top = 24 + ((index * 11) % 44);
+        const column = index % 6;
+        const row = Math.floor(index / 6);
+        const endX = direction * (38 + column * 19 + row * 8);
+        const endY = -(72 + row * 30 + (index % 3) * 10);
 
         return (
           <span
@@ -29,14 +29,12 @@ function ConfettiSide({ side }: { side: "left" | "right" }) {
             style={
               {
                 "--confetti-color": CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-                "--confetti-delay": `${index * 90}ms`,
-                "--confetti-drift-x": `${direction * (42 + (index % 4) * 12)}px`,
+                "--confetti-delay": `${index * 26}ms`,
+                "--confetti-drift-x": `${direction * (8 + (index % 5) * 5)}px`,
                 "--confetti-end-x": `${endX}px`,
                 "--confetti-end-y": `${endY}px`,
                 "--confetti-height": `${8 + (index % 3) * 3}px`,
-                "--confetti-left": side === "left" ? "0%" : "100%",
-                "--confetti-rotate": `${direction * (260 + index * 30)}deg`,
-                "--confetti-top": `${top}%`,
+                "--confetti-rotate": `${direction * (220 + index * 24)}deg`,
                 "--confetti-width": `${5 + (index % 2) * 4}px`,
               } as CSSProperties
             }
@@ -48,10 +46,12 @@ function ConfettiSide({ side }: { side: "left" | "right" }) {
 
   return (
     <div
-      className={`${styles.confettiSide} ${
-        side === "left" ? styles.confettiSideLeft : styles.confettiSideRight
+      aria-hidden="true"
+      className={`${styles.confettiBurst} ${
+        side === "left" ? styles.confettiBurstLeft : styles.confettiBurstRight
       }`}
     >
+      <span className={styles.confettiEmoji}>🎉</span>
       {pieces}
     </div>
   );
@@ -86,9 +86,9 @@ export function LanksterGalleryAnnouncement() {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/75 px-3 py-5 backdrop-blur-sm sm:px-4 sm:py-8">
-      <div className="relative flex max-h-[92dvh] w-full max-w-[min(92vw,34rem)] flex-col overflow-hidden rounded-3xl border border-cyan-400/30 bg-slate-950/95 p-3 text-center shadow-[0_0_70px_rgba(34,211,238,0.22)] sm:p-4">
-        <ConfettiSide side="left" />
-        <ConfettiSide side="right" />
+      <div className="relative flex max-h-[92dvh] w-full max-w-[min(92vw,34rem)] flex-col overflow-hidden rounded-3xl border border-cyan-400/30 bg-slate-950/95 text-center shadow-[0_0_70px_rgba(34,211,238,0.22)]">
+        <ConfettiBurst side="left" />
+        <ConfettiBurst side="right" />
 
         <button
           aria-label="Close announcement"
@@ -99,18 +99,18 @@ export function LanksterGalleryAnnouncement() {
           ×
         </button>
 
-        <div className="relative z-10 overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/70">
-          <Image
-            alt="Lankster gallery announcement"
-            className="max-h-[62dvh] w-full object-contain"
-            placeholder="blur"
-            priority
-            src={announcementPhoto}
-          />
+        <Image
+          alt="Lankster gallery announcement"
+          className="min-h-0 w-full flex-1 object-contain"
+          placeholder="blur"
+          priority
+          src={announcementPhoto}
+        />
+        <div className="relative z-10 border-t border-cyan-400/20 bg-slate-950/90 px-5 py-4 backdrop-blur sm:px-7 sm:py-5">
+          <p className="font-[family-name:var(--font-syne)] text-xl font-bold text-cyan-50 sm:text-2xl">
+            The lankster gallery is now out!
+          </p>
         </div>
-        <p className="relative z-10 mt-3 font-[family-name:var(--font-syne)] text-xl font-bold text-cyan-50 sm:mt-4 sm:text-2xl">
-          The lankster gallery is now out!
-        </p>
       </div>
     </div>
   );
