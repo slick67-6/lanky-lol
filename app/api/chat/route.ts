@@ -36,6 +36,9 @@ const MODEL_TIMEOUT_MS = 8_500;
 const MAX_HISTORY_MESSAGES = 6;
 const MAX_IMAGE_DATA_LENGTH = 4_500_000;
 
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_IMAGE_DATA_LENGTH = 12_000_000;
+
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
 Respond naturally with your own style and level of detail based on the user's intent.
 When an image is attached, describe what you can see first, then answer the user's request.
