@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -8,164 +8,238 @@ type ClientMessage = {
   image?: string;
 };
 
-type ImagePayload = {
-  mimeType: string;
-  data: string;
-};
-
-type NvidiaMessage =
+type NvidiaChatMessage =
   | { role: "system"; content: string }
   | {
-      role: "user" | "assistant";
+      role: "user";
       content:
         | string
         | Array<
             | { type: "text"; text: string }
-            | {
-                type: "image_url";
-                image_url: { url: string; detail: "auto" };
-              }
+            | { type: "image_url"; image_url: { url: string; detail: "auto" } }
           >;
     };
 
+type NvidiaChatResponse = {
+  choices?: Array<{ message?: { content?: string } }>;
+  error?: { message?: string } | string;
+  message?: string;
+  request_id?: string;
+  id?: string;
+};
+
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_MODEL =
-  process.env.NVIDIA_MODEL?.trim() || "meta/llama-4-maverick-17b-128e-instruct";
+const NVIDIA_STATUS_URL = "https://integrate.api.nvidia.com/v1/status";
+const DEFAULT_NVIDIA_MODEL = "nvidia/llama-3.1-nemotron-nano-vl-8b-v1";
 
-const SYSTEM = `You are a capable AI assistant on lanky.lol.
-Respond naturally with your own style and level of detail based on the user's intent.
-Stay safe and refuse harmful requests.`;
+const MODEL_TIMEOUT_MS = 7_500;
+const STATUS_POLL_DELAY_MS = 700;
+const MAX_IMAGE_BASE64_CHARS = 4_500_000;
+const MAX_PROMPT_CHARS = 2_000;
 
-function parseDataUrl(dataUrl: string): ImagePayload | null {
-  const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl);
-  if (!match) return null;
-  return { mimeType: match[1], data: match[2] };
+const SYSTEM_PROMPT = `You are a fast, helpful AI image analyzer for lanky.lol.
+If an image is attached, first say what you can see, then answer the user's request.
+Keep answers useful but concise unless the user asks for detail.`;
+
+function jsonError(error: string, status: number) {
+  return NextResponse.json({ error }, { status });
 }
 
-function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
-  return messages.map((message) => {
-    if (message.role === "assistant") {
-      return { role: "assistant", content: message.content };
-    }
+function getApiKey() {
+  return process.env.NVIDIA_API_KEY?.trim().replace(/^(["'])|(["'])$/g, "");
+}
 
-    const parsedImage = message.image ? parseDataUrl(message.image) : null;
-    if (!parsedImage) {
-      return { role: "user", content: message.content };
-    }
+function getModel() {
+  return process.env.NVIDIA_MODEL?.trim() || DEFAULT_NVIDIA_MODEL;
+}
 
-    return {
+function getLastUserMessage(messages: ClientMessage[]) {
+  return [...messages].reverse().find((message) => message.role === "user");
+}
+
+function readDataUrl(dataUrl?: string) {
+  if (!dataUrl) return null;
+
+  const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl);
+  if (!match) return null;
+
+  return {
+    mimeType: match[1],
+    data: match[2],
+  };
+}
+
+function getAbortSignal(timeoutMs: number) {
+  if (typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(timeoutMs);
+  }
+
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
+function isTimeoutError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+function getProviderErrorMessage(data: NvidiaChatResponse) {
+  if (typeof data.error === "string") return data.error;
+  return data.error?.message || data.message || "Model request failed.";
+}
+
+async function parseProviderResponse(response: Response) {
+  const raw = await response.text();
+
+  try {
+    return raw ? (JSON.parse(raw) as NvidiaChatResponse) : {};
+  } catch {
+    throw new Error(raw.trim() || "Model returned an unreadable response.");
+  }
+}
+
+function toNvidiaMessages(message: ClientMessage): NvidiaChatMessage[] {
+  const text = (message.content || "What is in this image?")
+    .trim()
+    .slice(0, MAX_PROMPT_CHARS);
+  const image = readDataUrl(message.image);
+
+  if (!image) {
+    return [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: text },
+    ];
+  }
+
+  if (image.data.length > MAX_IMAGE_BASE64_CHARS) {
+    throw new Error("Please upload a smaller image so the analyzer can respond quickly.");
+  }
+
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    {
       role: "user",
       content: [
-        { type: "text", text: message.content },
+        { type: "text", text },
         {
           type: "image_url",
           image_url: {
-            url: `data:${parsedImage.mimeType};base64,${parsedImage.data}`,
+            url: `data:${image.mimeType};base64,${image.data}`,
             detail: "auto",
           },
         },
       ],
-    };
+    },
+  ];
+}
+
+async function requestNvidia(messages: NvidiaChatMessage[], apiKey: string) {
+  const response = await fetch(NVIDIA_INVOKE_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: getModel(),
+      messages,
+      max_tokens: 700,
+      temperature: 0.35,
+      top_p: 0.9,
+      stream: false,
+    }),
+    signal: getAbortSignal(MODEL_TIMEOUT_MS),
   });
+
+  const data = await parseProviderResponse(response);
+
+  if (response.status === 202) {
+    const requestId = data.request_id || data.id;
+    if (!requestId) return data;
+
+    await new Promise((resolve) => setTimeout(resolve, STATUS_POLL_DELAY_MS));
+
+    const statusResponse = await fetch(`${NVIDIA_STATUS_URL}/${requestId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: getAbortSignal(MODEL_TIMEOUT_MS),
+    });
+
+    return parseProviderResponse(statusResponse);
+  }
+
+  if (!response.ok) {
+    throw new Error(getProviderErrorMessage(data));
+  }
+
+  return data;
 }
 
 export async function POST(request: Request) {
-  const rawApiKey = process.env.NVIDIA_API_KEY;
-  const apiKey = rawApiKey?.trim().replace(/^("'])|(["'])$/g, "");
-
+  const apiKey = getApiKey();
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "NVIDIA_API_KEY is not configured on the server." },
-      { status: 500 },
-    );
+    return jsonError("NVIDIA_API_KEY is not configured on the server.", 500);
   }
 
-  let body: {
-    messages?: ClientMessage[];
-  };
+  let messages: ClientMessage[];
 
   try {
-    body = await request.json();
+    const body = (await request.json()) as { messages?: ClientMessage[] };
+    messages = Array.isArray(body.messages) ? body.messages : [];
   } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    return jsonError("Invalid JSON.", 400);
   }
 
-  const { messages = [] } = body;
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return NextResponse.json(
-      { error: "At least one message is required." },
-      { status: 400 },
-    );
-  }
-
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const lastUser = getLastUserMessage(messages);
   if (!lastUser?.content?.trim() && !lastUser?.image) {
-    return NextResponse.json(
-      { error: "Send a message or attach an image." },
-      { status: 400 },
-    );
+    return jsonError("Send a message or attach an image.", 400);
   }
 
-  const nvidiaMessages: NvidiaMessage[] = [
-    { role: "system", content: SYSTEM },
-    ...toNvidiaMessages(messages),
-  ];
+  let nvidiaMessages: NvidiaChatMessage[];
+  try {
+    nvidiaMessages = toNvidiaMessages(lastUser);
+  } catch (error) {
+    return jsonError(
+      error instanceof Error ? error.message : "Could not prepare that image.",
+      400,
+    );
+  }
 
   try {
-    const response = await fetch(NVIDIA_INVOKE_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: NVIDIA_MODEL,
-        messages: nvidiaMessages,
-        max_tokens: 1024,
-        temperature: 0.7,
-        top_p: 0.95,
-        stream: false,
-      }),
-    });
+    const data = await requestNvidia(nvidiaMessages, apiKey);
+    const reply = data.choices?.[0]?.message?.content?.trim();
 
-    if (response.status === 429) {
-      return NextResponse.json(
-        { error: "Too many requests, please wait." },
-        { status: 429 },
+    if (!reply) {
+      return jsonError("The image analyzer did not receive a reply. Please try again.", 502);
+    }
+
+    return NextResponse.json({ reply });
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      return jsonError(
+        "The image analyzer took too long to respond. Try a smaller image or a shorter question.",
+        504,
       );
     }
 
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-      message?: string;
-    };
-
-    if (!response.ok) {
-      const message =
-        data?.error?.message || data?.message || "Model request failed.";
-      throw new Error(message);
-    }
-
-    const reply = data?.choices?.[0]?.message?.content;
-    if (!reply?.trim()) {
-      return NextResponse.json(
-        { error: "Empty response from model." },
-        { status: 502 },
-      );
-    }
-
-    return NextResponse.json({ reply: reply.trim() });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Model request failed.";
+    const message = error instanceof Error ? error.message : "Model request failed.";
 
     if (/429|too\s+many\s+requests|rate\s*limit/i.test(message)) {
-      return NextResponse.json(
-        { error: "Too many requests, please wait." },
-        { status: 429 },
+      return jsonError("Too many requests, please wait.", 429);
+    }
+
+    if (/token|context|length|too\s+large|payload|image/i.test(message)) {
+      return jsonError(
+        "That image or message is too large for the analyzer. Try a smaller image or shorter question.",
+        413,
       );
     }
 
-    return NextResponse.json({ error: message }, { status: 502 });
+    return jsonError(
+      "The image analyzer could not get a model response. Please try again.",
+      502,
+    );
   }
 }

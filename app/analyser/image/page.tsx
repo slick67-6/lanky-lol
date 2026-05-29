@@ -11,6 +11,54 @@ type Message = {
   imagePreview?: string;
 };
 
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 768;
+const COMPRESSED_IMAGE_QUALITY = 0.72;
+
+function canCanvasRead(file: File) {
+  return ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"].includes(file.type);
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read that image file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImageForChat(file: File) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+
+  if (!canCanvasRead(file)) {
+    return originalDataUrl;
+  }
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not prepare that image for upload."));
+    img.src = originalDataUrl;
+  });
+
+  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  if (scale === 1 && file.size <= MAX_UPLOAD_BYTES / 2) {
+    return originalDataUrl;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return originalDataUrl;
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", COMPRESSED_IMAGE_QUALITY);
+}
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
@@ -126,7 +174,7 @@ export default function ImageAnalyserPage() {
       return;
     }
 
-    const step = reply.length > 2400 ? 12 : reply.length > 1200 ? 9 : 6;
+    const step = reply.length > 2400 ? 36 : reply.length > 1200 ? 28 : 18;
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
@@ -147,16 +195,26 @@ export default function ImageAnalyserPage() {
     scrollToBottom();
   }, [messages, loading, scrollToBottom]);
 
-  const attachFile = (file: File) => {
+  const attachFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
       setError("Please attach an image file.");
       return;
     }
+
+    if (file.size > MAX_UPLOAD_BYTES && !canCanvasRead(file)) {
+      setError("Please choose a smaller image, or convert it to JPG/PNG first.");
+      return;
+    }
+
     setError(null);
-    const reader = new FileReader();
-    reader.onload = () => setPendingImage(reader.result as string);
-    reader.readAsDataURL(file);
-  };
+
+    try {
+      const dataUrl = await compressImageForChat(file);
+      setPendingImage(dataUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not prepare that image.");
+    }
+  }, []);
 
   const send = async () => {
     const text = input.trim();
@@ -178,10 +236,13 @@ export default function ImageAnalyserPage() {
     setError(null);
 
     try {
+      const latestImageMessageId = [...nextMessages]
+        .reverse()
+        .find((m) => m.role === "user" && m.imagePreview)?.id;
       const apiMessages = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
-        image: m.role === "user" ? m.imagePreview : undefined,
+        image: m.id === latestImageMessageId ? m.imagePreview : undefined,
       }));
 
       const res = await fetch("/api/chat", {
@@ -192,7 +253,16 @@ export default function ImageAnalyserPage() {
         }),
       });
 
-      const data = (await res.json()) as { reply?: string; error?: string };
+      const rawResponse = await res.text();
+      let data: { reply?: string; error?: string } = {};
+
+      try {
+        data = rawResponse ? (JSON.parse(rawResponse) as { reply?: string; error?: string }) : {};
+      } catch {
+        const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
+        throw new Error(fallbackMessage);
+      }
+
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
       await animateAssistantReply(data.reply ?? "");
@@ -222,7 +292,7 @@ export default function ImageAnalyserPage() {
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, []);
+  }, [attachFile]);
 
   return (
     <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
