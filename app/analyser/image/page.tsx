@@ -11,9 +11,9 @@ type Message = {
   imagePreview?: string;
 };
 
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
-const MAX_IMAGE_SIDE = 1400;
-const COMPRESSED_IMAGE_QUALITY = 0.82;
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 1100;
+const COMPRESSED_IMAGE_QUALITY = 0.78;
 
 function canCanvasRead(file: File) {
   return ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"].includes(file.type);
@@ -174,7 +174,7 @@ export default function ImageAnalyserPage() {
       return;
     }
 
-    const step = reply.length > 2400 ? 12 : reply.length > 1200 ? 9 : 6;
+    const step = reply.length > 2400 ? 36 : reply.length > 1200 ? 28 : 18;
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
@@ -253,7 +253,16 @@ export default function ImageAnalyserPage() {
         }),
       });
 
-      const data = (await res.json()) as { reply?: string; error?: string };
+      const rawResponse = await res.text();
+      let data: { reply?: string; error?: string } = {};
+
+      try {
+        data = rawResponse ? (JSON.parse(rawResponse) as { reply?: string; error?: string }) : {};
+      } catch {
+        const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
+        throw new Error(fallbackMessage);
+      }
+
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
       await animateAssistantReply(data.reply ?? "");

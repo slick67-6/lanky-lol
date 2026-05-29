@@ -86,7 +86,7 @@ export function LanksterGalleryAnnouncement() {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/75 px-3 py-5 backdrop-blur-sm sm:px-4 sm:py-8">
-      <div className="relative flex max-h-[92dvh] w-full max-w-[min(92vw,34rem)] flex-col overflow-hidden rounded-3xl border border-cyan-400/30 bg-slate-950/95 text-center shadow-[0_0_70px_rgba(34,211,238,0.22)]">
+      <div className="relative h-[min(92dvh,44rem)] w-full max-w-[min(92vw,34rem)] overflow-hidden rounded-3xl border border-cyan-400/30 bg-slate-950/95 text-center shadow-[0_0_70px_rgba(34,211,238,0.22)]">
         <ConfettiBurst side="left" />
         <ConfettiBurst side="right" />
 
@@ -101,12 +101,14 @@ export function LanksterGalleryAnnouncement() {
 
         <Image
           alt="Lankster gallery announcement"
-          className="min-h-0 w-full flex-1 object-contain"
+          className="object-cover"
+          fill
           placeholder="blur"
           priority
+          sizes="(max-width: 640px) 92vw, 34rem"
           src={announcementPhoto}
         />
-        <div className="relative z-10 border-t border-cyan-400/20 bg-slate-950/90 px-5 py-4 backdrop-blur sm:px-7 sm:py-5">
+        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/20 bg-slate-950/85 px-5 py-4 backdrop-blur sm:px-7 sm:py-5">
           <p className="font-[family-name:var(--font-syne)] text-xl font-bold text-cyan-50 sm:text-2xl">
             The lankster gallery is now out!
           </p>

@@ -32,8 +32,8 @@ const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 const NVIDIA_MODEL =
   process.env.NVIDIA_MODEL?.trim() || "meta/llama-4-maverick-17b-128e-instruct";
 
-const MAX_HISTORY_MESSAGES = 8;
-const MAX_IMAGE_DATA_LENGTH = 5_500_000;
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_IMAGE_DATA_LENGTH = 12_000_000;
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
 Respond naturally with your own style and level of detail based on the user's intent.
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: NVIDIA_MODEL,
         messages: nvidiaMessages,
-        max_tokens: 768,
+        max_tokens: 1200,
         temperature: 0.7,
         top_p: 0.95,
         stream: false,
@@ -175,11 +175,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = (await response.json()) as {
+    const rawModelResponse = await response.text();
+    let data: {
       choices?: Array<{ message?: { content?: string } }>;
       error?: { message?: string };
       message?: string;
-    };
+    } = {};
+
+    try {
+      data = rawModelResponse ? JSON.parse(rawModelResponse) : {};
+    } catch {
+      throw new Error(rawModelResponse.trim() || "Model returned an unreadable response.");
+    }
 
     if (!response.ok) {
       const message =
