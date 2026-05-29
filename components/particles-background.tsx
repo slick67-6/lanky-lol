@@ -25,11 +25,15 @@ export function ParticlesBackground() {
     let particles: Particle[] = [];
     let w = 0;
     let h = 0;
-    const preferStatic =
-      window.matchMedia("(pointer: coarse)").matches ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const count = () => Math.min(90, Math.floor((w * h) / 14000));
+    const count = () => {
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      const density = isMobile ? 18000 : 14000;
+      const maxParticles = isMobile ? 48 : 90;
+
+      return Math.max(18, Math.min(maxParticles, Math.floor((w * h) / density)));
+    };
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -69,7 +73,7 @@ export function ParticlesBackground() {
       ctx.fillRect(0, 0, w, h);
 
       for (const p of particles) {
-        if (!preferStatic) {
+        if (!reduceMotion) {
           p.x += p.vx;
           p.y += p.vy;
           if (p.x < 0) p.x = w;
@@ -102,7 +106,7 @@ export function ParticlesBackground() {
         }
       }
 
-      if (!preferStatic) {
+      if (!reduceMotion) {
         raf = requestAnimationFrame(draw);
       }
     };
