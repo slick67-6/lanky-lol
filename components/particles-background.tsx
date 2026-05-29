@@ -25,30 +25,46 @@ export function ParticlesBackground() {
     let particles: Particle[] = [];
     let w = 0;
     let h = 0;
-    const preferStatic =
-      window.matchMedia("(pointer: coarse)").matches ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    const count = () => Math.min(90, Math.floor((w * h) / 14000));
+    const count = () => {
+      const maxParticles = window.innerWidth < 640 ? 42 : 90;
+      const density = window.innerWidth < 640 ? 18500 : 14000;
+      return Math.min(maxParticles, Math.max(24, Math.floor((w * h) / density)));
+    };
+
+    const createParticle = (): Particle => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      r: Math.random() * 1.8 + 0.4,
+      alpha: Math.random() * 0.35 + 0.08,
+    });
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       w = window.innerWidth;
       h = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      particles = Array.from({ length: count() }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        r: Math.random() * 1.8 + 0.4,
-        alpha: Math.random() * 0.35 + 0.08,
+      const nextCount = count();
+      if (particles.length === 0) {
+        particles = Array.from({ length: nextCount }, createParticle);
+        return;
+      }
+
+      particles = particles.slice(0, nextCount).map((particle) => ({
+        ...particle,
+        x: Math.min(particle.x, w),
+        y: Math.min(particle.y, h),
       }));
+
+      while (particles.length < nextCount) particles.push(createParticle());
     };
 
     const draw = () => {
@@ -69,7 +85,7 @@ export function ParticlesBackground() {
       ctx.fillRect(0, 0, w, h);
 
       for (const p of particles) {
-        if (!preferStatic) {
+        if (!reduceMotionQuery.matches) {
           p.x += p.vx;
           p.y += p.vy;
           if (p.x < 0) p.x = w;
@@ -102,18 +118,32 @@ export function ParticlesBackground() {
         }
       }
 
-      if (!preferStatic) {
+      if (!reduceMotionQuery.matches && document.visibilityState === "visible") {
         raf = requestAnimationFrame(draw);
       }
     };
 
+    const start = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(draw);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") start();
+      else cancelAnimationFrame(raf);
+    };
+
     resize();
     window.addEventListener("resize", resize);
-    raf = requestAnimationFrame(draw);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    reduceMotionQuery.addEventListener("change", start);
+    start();
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      reduceMotionQuery.removeEventListener("change", start);
     };
   }, []);
 
