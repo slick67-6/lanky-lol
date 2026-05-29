@@ -1,4 +1,6 @@
 import { FadeIn } from "@/components/fade-in";
+import { LanksterGalleryAnnouncement } from "@/components/lankster-gallery-announcement";
+import { LanksterGalleryGate } from "@/components/lankster-gallery-gate";
 import { ParticlesBackground } from "@/components/particles-background";
 import { ScrollArrow } from "@/components/scroll-arrow";
 import { ToolCard } from "@/components/tool-card";
@@ -56,6 +58,8 @@ export default function Home() {
   return (
     <div className="relative min-h-dvh w-full bg-[#030712] text-slate-100">
       <ParticlesBackground />
+      <LanksterGalleryAnnouncement />
+      <LanksterGalleryGate />
 
       <main className="relative z-10">
         {/* Hero */}
