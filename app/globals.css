@@ -30,9 +30,31 @@ body {
   background: var(--bg-deep);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.5;
   overflow-x: hidden;
   overscroll-behavior-y: auto;
 }
+button,
+input,
+textarea {
+  line-height: 1.35;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.2;
+  padding-bottom: 0.08em;
+}
+
+[class*="font-[family-name:var(--font-syne)]"] {
+  line-height: 1.22 !important;
+  padding-bottom: 0.08em;
+}
+
 
 /* Prevent white flash on mobile overscroll / fullscreen */
 #__next,
