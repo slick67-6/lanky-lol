@@ -22,16 +22,14 @@ export function ParticlesBackground() {
     if (!ctx) return;
 
     let raf = 0;
-    let resizeRaf = 0;
     let particles: Particle[] = [];
     let w = 0;
     let h = 0;
-    const preferStatic = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const preferStatic =
+      window.matchMedia("(pointer: coarse)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const count = () => {
-      const mobileCap = window.innerWidth < 768 ? 52 : 90;
-      return Math.min(mobileCap, Math.max(22, Math.floor((w * h) / 14000)));
-    };
+    const count = () => Math.min(90, Math.floor((w * h) / 14000));
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -43,23 +41,14 @@ export function ParticlesBackground() {
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      particles = Array.from({ length: count() }, (_, index) => {
-        const previous = particles[index];
-
-        return {
-          x: previous?.x ?? Math.random() * w,
-          y: previous?.y ?? Math.random() * h,
-          vx: previous?.vx ?? (Math.random() - 0.5) * 0.28,
-          vy: previous?.vy ?? (Math.random() - 0.5) * 0.28,
-          r: previous?.r ?? Math.random() * 1.8 + 0.4,
-          alpha: previous?.alpha ?? Math.random() * 0.35 + 0.08,
-        };
-      });
-    };
-
-    const scheduleResize = () => {
-      cancelAnimationFrame(resizeRaf);
-      resizeRaf = requestAnimationFrame(resize);
+      particles = Array.from({ length: count() }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        r: Math.random() * 1.8 + 0.4,
+        alpha: Math.random() * 0.35 + 0.08,
+      }));
     };
 
     const draw = () => {
@@ -113,30 +102,18 @@ export function ParticlesBackground() {
         }
       }
 
-      if (!preferStatic && document.visibilityState === "visible") {
-        raf = requestAnimationFrame(draw);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && !preferStatic) {
-        cancelAnimationFrame(raf);
+      if (!preferStatic) {
         raf = requestAnimationFrame(draw);
       }
     };
 
     resize();
-    window.addEventListener("resize", scheduleResize);
-    window.visualViewport?.addEventListener("resize", scheduleResize);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("resize", resize);
     raf = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(raf);
-      cancelAnimationFrame(resizeRaf);
-      window.removeEventListener("resize", scheduleResize);
-      window.visualViewport?.removeEventListener("resize", scheduleResize);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("resize", resize);
     };
   }, []);
 
