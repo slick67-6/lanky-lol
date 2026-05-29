@@ -37,7 +37,17 @@ body {
 button,
 input,
 textarea {
-  line-height: 1.35;
+  line-height: 1.5;
+}
+
+p,
+li,
+label,
+a,
+strong,
+em,
+code {
+  line-height: 1.55;
 }
 
 h1,
@@ -46,13 +56,15 @@ h3,
 h4,
 h5,
 h6 {
-  line-height: 1.2;
-  padding-bottom: 0.08em;
+  overflow: visible;
+  line-height: 1.35 !important;
+  padding-block: 0.1em;
 }
 
 [class*="font-[family-name:var(--font-syne)]"] {
-  line-height: 1.22 !important;
-  padding-bottom: 0.08em;
+  overflow: visible;
+  line-height: 1.4 !important;
+  padding-block: 0.12em;
 }
 
 

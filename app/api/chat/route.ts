@@ -28,26 +28,55 @@ type NvidiaMessage =
           >;
     };
 
+type NvidiaStreamChunk = {
+  choices?: Array<{
+    delta?: { content?: string };
+    message?: { content?: string };
+  }>;
+};
+
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const DEFAULT_NVIDIA_MODELS = [
+const DEFAULT_TEXT_MODELS = [
+  "nvidia/llama-3.1-nemotron-nano-8b-v1",
+  "meta/llama-3.1-8b-instruct",
+];
+const DEFAULT_VISION_MODELS = [
+  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
   "meta/llama-4-scout-17b-16e-instruct",
   "meta/llama-4-maverick-17b-128e-instruct",
 ];
-const NVIDIA_MODELS = (process.env.NVIDIA_MODEL?.trim()
-  ? process.env.NVIDIA_MODEL.split(",")
-  : DEFAULT_NVIDIA_MODELS
-)
-  .map((model) => model.trim())
-  .filter(Boolean);
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_IMAGE_DATA_LENGTH = 4_000_000;
-const MODEL_TIMEOUT_MS = 24_000;
+const UPSTREAM_CONNECT_TIMEOUT_MS = 8_000;
+const REQUEST_START_DEADLINE_MS = 8_500;
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
-Respond naturally with your own style and level of detail based on the user's intent.
-When an image is attached, describe what you can see first, then answer the user's request.
+The user may send only text, only an image, or text plus an image. Reply directly to what they sent.
+When an image is attached, describe the relevant visual details first, then answer the user's request.
+Use Markdown when it helps: ### headings, bullet or numbered lists, **bold**, *italic*, inline \`code\`, fenced code blocks, and LaTeX with $...$ or $$...$$.
 Stay safe and refuse harmful requests.`;
+
+function parseModelList(value: string | undefined) {
+  return value
+    ?.split(",")
+    .map((model) => model.trim())
+    .filter(Boolean) ?? [];
+}
+
+function uniqueModels(models: string[]) {
+  return [...new Set(models)];
+}
+
+function modelsForRequest(hasImage: boolean) {
+  const specificModels = parseModelList(
+    hasImage ? process.env.NVIDIA_VISION_MODEL : process.env.NVIDIA_TEXT_MODEL,
+  );
+  const legacyModels = parseModelList(process.env.NVIDIA_MODEL);
+  const defaults = hasImage ? DEFAULT_VISION_MODELS : DEFAULT_TEXT_MODELS;
+
+  return uniqueModels([...specificModels, ...defaults, ...legacyModels]);
+}
 
 function parseDataUrl(dataUrl: string): ImagePayload | null {
   const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl);
@@ -87,7 +116,9 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
 
     const parsedImage = message.image ? parseDataUrl(message.image) : null;
     if (parsedImage && parsedImage.data.length > MAX_IMAGE_DATA_LENGTH) {
-      throw new Error("Please upload a smaller image so the analyzer can read it without hitting token limits.");
+      throw new Error(
+        "Please upload a smaller image so the analyzer can read it without hitting token limits.",
+      );
     }
 
     if (!parsedImage) {
@@ -110,9 +141,73 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
   });
 }
 
+function readModelError(rawModelResponse: string) {
+  try {
+    const data = rawModelResponse
+      ? (JSON.parse(rawModelResponse) as {
+          error?: { message?: string };
+          message?: string;
+        })
+      : {};
+    return data?.error?.message || data?.message || "Model request failed.";
+  } catch {
+    return rawModelResponse.trim() || "Model returned an unreadable response.";
+  }
+}
+
+function streamNvidiaResponse(response: Response) {
+  const upstream = response.body?.getReader();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      if (!upstream) {
+        controller.error(new Error("Model response was empty."));
+        return;
+      }
+
+      let buffer = "";
+
+      try {
+        for (;;) {
+          const { done, value } = await upstream.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+
+            const payload = trimmed.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+
+            const parsed = JSON.parse(payload) as NvidiaStreamChunk;
+            const text =
+              parsed.choices?.[0]?.delta?.content ??
+              parsed.choices?.[0]?.message?.content ??
+              "";
+
+            if (text) controller.enqueue(encoder.encode(text));
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      } finally {
+        upstream.releaseLock();
+      }
+    },
+  });
+}
+
 export async function POST(request: Request) {
   const rawApiKey = process.env.NVIDIA_API_KEY;
-  const apiKey = rawApiKey?.trim().replace(/^("'])|(["'])$/g, "");
+  const apiKey = rawApiKey?.trim().replace(/^("|')|("|')$/g, "");
 
   if (!apiKey) {
     return NextResponse.json(
@@ -147,12 +242,17 @@ export async function POST(request: Request) {
     );
   }
 
+  const compactMessages = compactMessagesForModel(messages);
+  const hasImage = compactMessages.some(
+    (message) => message.role === "user" && Boolean(message.image),
+  );
+
   let nvidiaMessages: NvidiaMessage[];
 
   try {
     nvidiaMessages = [
       { role: "system", content: SYSTEM },
-      ...toNvidiaMessages(compactMessagesForModel(messages)),
+      ...toNvidiaMessages(compactMessages),
     ];
   } catch (error) {
     return NextResponse.json(
@@ -166,105 +266,87 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    let lastError = "Model request failed.";
+  let lastError = "Model request failed.";
+  const startDeadline = Date.now() + REQUEST_START_DEADLINE_MS;
 
-    for (const model of NVIDIA_MODELS) {
-      const { controller, timeout } = timeoutSignal(MODEL_TIMEOUT_MS);
+  for (const model of modelsForRequest(hasImage)) {
+    const remainingStartTime = startDeadline - Date.now();
+    if (remainingStartTime <= 0) break;
 
-      try {
-        const response = await fetch(NVIDIA_INVOKE_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: nvidiaMessages,
-            max_tokens: 800,
-            temperature: 0.7,
-            top_p: 0.95,
-            stream: false,
-          }),
-          signal: controller.signal,
-        });
+    const { controller, timeout } = timeoutSignal(
+      Math.min(UPSTREAM_CONNECT_TIMEOUT_MS, remainingStartTime),
+    );
 
-        if (response.status === 429) {
-          return NextResponse.json(
-            { error: "Too many requests, please wait." },
-            { status: 429 },
-          );
-        }
-
-        const rawModelResponse = await response.text();
-        let data: {
-          choices?: Array<{ message?: { content?: string } }>;
-          error?: { message?: string };
-          message?: string;
-        } = {};
-
-        try {
-          data = rawModelResponse ? JSON.parse(rawModelResponse) : {};
-        } catch {
-          throw new Error(rawModelResponse.trim() || "Model returned an unreadable response.");
-        }
-
-        if (!response.ok) {
-          const message =
-            data?.error?.message || data?.message || "Model request failed.";
-          throw new Error(message);
-        }
-
-        const reply = data?.choices?.[0]?.message?.content;
-        if (!reply?.trim()) {
-          throw new Error("Empty response from model.");
-        }
-
-        return NextResponse.json({ reply: reply.trim() });
-      } catch (error) {
-        lastError =
-          error instanceof Error && error.name === "AbortError"
-            ? "The model took too long to respond."
-            : error instanceof Error
-              ? error.message
-              : "Model request failed.";
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-
-    throw new Error(lastError);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Model request failed.";
-
-    if (/429|too\s+many\s+requests|rate\s*limit/i.test(message)) {
-      return NextResponse.json(
-        { error: "Too many requests, please wait." },
-        { status: 429 },
-      );
-    }
-
-    if (/token|context|length|too\s+large|payload/i.test(message)) {
-      return NextResponse.json(
-        {
-          error:
-            "That image or chat is too large for the analyzer. Try a smaller image or start a fresh chat.",
+    try {
+      const response = await fetch(NVIDIA_INVOKE_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        { status: 413 },
-      );
-    }
+        body: JSON.stringify({
+          model,
+          messages: nvidiaMessages,
+          max_tokens: 1000,
+          temperature: 0.7,
+          top_p: 0.95,
+          stream: true,
+        }),
+        signal: controller.signal,
+      });
 
-    if (/timed?\s*out|too\s+long|abort/i.test(message)) {
-      return NextResponse.json(
-        { error: "The model is taking too long right now. Try again with a shorter prompt or smaller image." },
-        { status: 504 },
-      );
-    }
+      clearTimeout(timeout);
 
+      if (response.status === 429) {
+        return NextResponse.json(
+          { error: "Too many requests, please wait." },
+          { status: 429 },
+        );
+      }
+
+      if (!response.ok) {
+        lastError = readModelError(await response.text());
+        continue;
+      }
+
+      return new Response(streamNvidiaResponse(response), {
+        headers: {
+          "Cache-Control": "no-cache, no-transform",
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    } catch (error) {
+      lastError =
+        error instanceof Error && error.name === "AbortError"
+          ? "The model connection took too long to start."
+          : error instanceof Error
+            ? error.message
+            : "Model request failed.";
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (/429|too\s+many\s+requests|rate\s*limit/i.test(lastError)) {
     return NextResponse.json(
-      { error: "The image analyzer could not get a model response. Please try again." },
-      { status: 502 },
+      { error: "Too many requests, please wait." },
+      { status: 429 },
     );
   }
+
+  if (/token|context|length|too\s+large|payload/i.test(lastError)) {
+    return NextResponse.json(
+      {
+        error:
+          "That image or chat is too large for the analyzer. Try a smaller image or start a fresh chat.",
+      },
+      { status: 413 },
+    );
+  }
+
+  return NextResponse.json(
+    { error: "The analyzer could not get a model response. Please try again." },
+    { status: 502 },
+  );
 }
