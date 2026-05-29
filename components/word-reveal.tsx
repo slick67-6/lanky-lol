@@ -50,12 +50,12 @@ export function WordReveal({
 
   return (
     <h1
-      className={`font-[family-name:var(--font-syne)] text-4xl font-bold leading-tight tracking-tight text-cyan-50 sm:text-5xl md:text-6xl lg:text-7xl ${className}`}
+      className={`font-[family-name:var(--font-syne)] text-4xl font-bold leading-[1.35] tracking-tight text-cyan-50 sm:text-5xl md:text-6xl lg:text-7xl ${className}`}
     >
       {words.map((word, i) => (
         <span
           key={`${word}-${i}`}
-          className="mr-[0.28em] inline-block transition-all duration-500 ease-out"
+          className="mr-[0.28em] inline-block overflow-visible py-[0.08em] transition-all duration-500 ease-out"
           style={{
             opacity: i < visibleCount ? 1 : 0,
             transform:

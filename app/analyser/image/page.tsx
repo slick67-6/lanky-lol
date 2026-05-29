@@ -12,8 +12,8 @@ type Message = {
 };
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
-const MAX_IMAGE_SIDE = 1100;
-const COMPRESSED_IMAGE_QUALITY = 0.78;
+const MAX_IMAGE_SIDE = 900;
+const COMPRESSED_IMAGE_QUALITY = 0.68;
 
 function canCanvasRead(file: File) {
   return ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"].includes(file.type);
@@ -62,7 +62,7 @@ async function compressImageForChat(file: File) {
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|\$[^$\n]+\$|`[^`\n]+`)/g;
+  const pattern = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -77,6 +77,12 @@ function renderInline(text: string) {
         <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
           {token.slice(2, -2)}
         </strong>,
+      );
+    } else if (token.startsWith("*")) {
+      nodes.push(
+        <em key={`${match.index}-italic`} className="italic text-slate-100">
+          {token.slice(1, -1)}
+        </em>,
       );
     } else if (token.startsWith("$")) {
       nodes.push(
@@ -105,6 +111,89 @@ function renderInline(text: string) {
   return nodes;
 }
 
+function renderTextBlock(segment: string) {
+  const lines = segment.split("\n");
+  const blocks: React.ReactNode[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      blocks.push(<div key={`space-${index}`} className="h-1" />);
+      continue;
+    }
+
+    const blockMath = trimmed.match(/^\$\$([\s\S]+)\$\$$/);
+    if (blockMath) {
+      blocks.push(
+        <p key={index} className="overflow-x-auto rounded-lg bg-slate-950/50 px-3 py-2 text-center font-semibold italic text-cyan-100">
+          {blockMath[1]}
+        </p>,
+      );
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const HeadingTag = (`h${heading[1].length + 2}` as "h3" | "h4" | "h5");
+      blocks.push(
+        <HeadingTag key={index} className="mt-3 font-semibold text-cyan-50 first:mt-0">
+          {renderInline(heading[2])}
+        </HeadingTag>,
+      );
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+        index += 1;
+      }
+      index -= 1;
+      blocks.push(
+        <ul key={index} className="ml-5 list-disc space-y-1">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex}>{renderInline(item)}</li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+[.)]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+[.)]\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^\d+[.)]\s+/, ""));
+        index += 1;
+      }
+      index -= 1;
+      blocks.push(
+        <ol key={index} className="ml-5 list-decimal space-y-1">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex}>{renderInline(item)}</li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    if (trimmed.startsWith(">")) {
+      blocks.push(
+        <blockquote key={index} className="border-l-2 border-cyan-500/50 pl-3 text-slate-300">
+          {renderInline(trimmed.replace(/^>\s?/, ""))}
+        </blockquote>,
+      );
+      continue;
+    }
+
+    blocks.push(<p key={index}>{renderInline(line)}</p>);
+  }
+
+  return blocks;
+}
+
 function AssistantContent({ content }: { content: string }) {
   const segments = content.split(/```([\s\S]*?)```/g);
   return (
@@ -121,20 +210,9 @@ function AssistantContent({ content }: { content: string }) {
           );
         }
 
-        const lines = segment.split("\n");
         return (
           <div key={`txt-${i}`} className="space-y-1 whitespace-pre-wrap">
-            {lines.map((line, idx) => {
-              const blockMath = line.match(/^\$\$([\s\S]+)\$\$$/);
-              if (blockMath) {
-                return (
-                  <p key={idx} className="overflow-x-auto text-center font-semibold italic text-cyan-100">
-                    {blockMath[1]}
-                  </p>
-                );
-              }
-              return <p key={idx}>{renderInline(line)}</p>;
-            })}
+            {renderTextBlock(segment)}
           </div>
         );
       })}
@@ -183,6 +261,39 @@ export default function ImageAnalyserPage() {
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => resolve());
       });
+    }
+  }, []);
+
+
+  const streamAssistantReply = useCallback(async (body: ReadableStream<Uint8Array>) => {
+    const messageId = crypto.randomUUID();
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let reply = "";
+
+    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        reply += decoder.decode(value, { stream: true });
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+        );
+      }
+
+      reply += decoder.decode();
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+      );
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (!reply.trim()) {
+      throw new Error("Empty response from model.");
     }
   }, []);
 
@@ -253,19 +364,27 @@ export default function ImageAnalyserPage() {
         }),
       });
 
-      const rawResponse = await res.text();
-      let data: { reply?: string; error?: string } = {};
+      if (!res.ok) {
+        const rawResponse = await res.text();
+        let data: { error?: string } = {};
 
-      try {
-        data = rawResponse ? (JSON.parse(rawResponse) as { reply?: string; error?: string }) : {};
-      } catch {
-        const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
-        throw new Error(fallbackMessage);
+        try {
+          data = rawResponse ? (JSON.parse(rawResponse) as { error?: string }) : {};
+        } catch {
+          const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
+          throw new Error(fallbackMessage);
+        }
+
+        throw new Error(data.error || "Request failed.");
       }
 
-      if (!res.ok) throw new Error(data.error || "Request failed.");
-
-      await animateAssistantReply(data.reply ?? "");
+      if (res.body) {
+        await streamAssistantReply(res.body);
+      } else {
+        const rawResponse = await res.text();
+        const data = rawResponse ? (JSON.parse(rawResponse) as { reply?: string }) : {};
+        await animateAssistantReply(data.reply ?? "");
+      }
 
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
