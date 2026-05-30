@@ -73,7 +73,7 @@ export function LanksterGalleryGate() {
   return (
     <>
       <aside className="fixed left-4 top-4 z-40 max-w-[160px] text-left sm:left-6 sm:top-6">
-        <h2 className="font-[family-name:var(--font-syne)] text-sm font-bold uppercase tracking-[0.18em] text-cyan-100/90">
+        <h2 className="overflow-visible py-1 font-[family-name:var(--font-syne)] text-sm font-bold uppercase leading-[1.45] tracking-[0.18em] text-cyan-100/90">
           lankster gallery
         </h2>
         <button
@@ -102,7 +102,7 @@ export function LanksterGalleryGate() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">
                 locked window
               </p>
-              <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold">
+              <h2 className="mt-2 overflow-visible py-1 font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45]">
                 Lankster gallery
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
