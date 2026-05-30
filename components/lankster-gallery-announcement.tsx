@@ -109,7 +109,7 @@ export function LanksterGalleryAnnouncement() {
           src={announcementPhoto}
         />
         <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/20 bg-slate-950/85 px-5 py-4 backdrop-blur sm:px-7 sm:py-5">
-          <p className="font-[family-name:var(--font-syne)] text-xl font-bold text-cyan-50 sm:text-2xl">
+          <p className="overflow-visible py-1 font-[family-name:var(--font-syne)] text-xl font-bold leading-[1.45] text-cyan-50 sm:text-2xl">
             The lankster gallery is now out!
           </p>
         </div>
