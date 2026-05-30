@@ -16,10 +16,10 @@ const MAX_IMAGE_SIDE = 900;
 const COMPRESSED_IMAGE_QUALITY = 0.68;
 const AUTO_SCROLL_THRESHOLD = 120;
 const COMING_SOON_FEATURES = [
-  "Voice notes",
-  "Prompt library",
-  "Multi-image canvas",
-  "Export chat",
+  "Chess analysis and assistance",
+  "Deeper thinking capabilities",
+  "Musical capabilities and file creation",
+  "Online search capabilities",
 ];
 
 function canCanvasRead(file: File) {
@@ -322,6 +322,28 @@ export default function ImageAnalyserPage() {
     return el.scrollHeight - el.scrollTop - el.clientHeight < AUTO_SCROLL_THRESHOLD;
   }, []);
 
+  const scrollChatToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const nearBottom = isNearBottom();
+
+    if (!nearBottom) {
+      shouldAutoScrollRef.current = false;
+      return;
+    }
+
+    if (!loading) {
+      shouldAutoScrollRef.current = true;
+    }
+  }, [isNearBottom, loading]);
+
+  const pauseAutoScroll = useCallback(() => {
+    shouldAutoScrollRef.current = false;
+  }, []);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior });
@@ -333,9 +355,9 @@ export default function ImageAnalyserPage() {
 
   useEffect(() => {
     if (shouldAutoScrollRef.current) {
-      scrollToBottom("smooth");
+      scrollChatToBottom(loading ? "auto" : "smooth");
     }
-  }, [messages, loading, scrollToBottom]);
+  }, [messages, loading, scrollChatToBottom]);
 
   const attachFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
@@ -378,7 +400,7 @@ export default function ImageAnalyserPage() {
     setPlusMenuOpen(false);
     setLoading(true);
     setError(null);
-    requestAnimationFrame(() => scrollToBottom("smooth"));
+    requestAnimationFrame(() => scrollChatToBottom("smooth"));
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -409,7 +431,7 @@ export default function ImageAnalyserPage() {
         try {
           data = rawResponse ? (JSON.parse(rawResponse) as { error?: string }) : {};
         } catch {
-          const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
+          const fallbackMessage = rawResponse.trim() || "The analyser returned an unreadable response.";
           throw new Error(fallbackMessage);
         }
 
@@ -469,12 +491,15 @@ export default function ImageAnalyserPage() {
     <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <SiteHeader title="AI Image Analyzer" />
+        <SiteHeader title="AI Image Analyser" />
 
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          onTouchMove={pauseAutoScroll}
+          onTouchStart={pauseAutoScroll}
+          onWheel={pauseAutoScroll}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [touch-action:pan-y] sm:px-6"
         >
           <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
             {messages.map((m) => (
@@ -564,25 +589,29 @@ export default function ImageAnalyserPage() {
                 e.target.value = "";
               }}
             />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
+              aria-label="Attach image"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                />
+              </svg>
+            </button>
             <div className="relative shrink-0">
               {plusMenuOpen && (
-                <div className="absolute bottom-14 left-0 w-64 overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlusMenuOpen(false);
-                      fileRef.current?.click();
-                    }}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-cyan-100 transition-colors hover:bg-cyan-500/10"
-                  >
-                    <span>Attach image</span>
-                    <span className="text-xs text-cyan-300">Live</span>
-                  </button>
-                  <div className="my-1 h-px bg-white/10" />
+                <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
                   {COMING_SOON_FEATURES.map((feature) => (
-                    <div key={feature} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-slate-400">
+                    <div key={feature} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-slate-400">
                       <span>{feature}</span>
-                      <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">
+                      <span className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">
                         (coming soon)
                       </span>
                     </div>
@@ -594,7 +623,7 @@ export default function ImageAnalyserPage() {
                 onClick={() => setPlusMenuOpen((open) => !open)}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
                 aria-expanded={plusMenuOpen}
-                aria-label="Open chat actions"
+                aria-label="Open coming soon chat features"
               >
                 +
               </button>

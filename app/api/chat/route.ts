@@ -167,7 +167,7 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
     const parsedImage = message.image ? parseDataUrl(message.image) : null;
     if (parsedImage && parsedImage.data.length > MAX_IMAGE_DATA_LENGTH) {
       throw new Error(
-        "Please upload a smaller image so the analyzer can read it without hitting token limits.",
+        "Please upload a smaller image so the analyser can read it without hitting token limits.",
       );
     }
 
@@ -390,14 +390,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "That image or chat is too large for the analyzer. Try a smaller image or start a fresh chat.",
+          "That image or chat is too large for the analyser. Try a smaller image or start a fresh chat.",
       },
       { status: 413 },
     );
   }
 
   return NextResponse.json(
-    { error: "The analyzer could not get a model response. Please try again." },
+    { error: "The analyser could not get a model response. Please try again." },
     { status: 502 },
   );
 }
