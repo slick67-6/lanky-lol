@@ -344,6 +344,15 @@ export default function ImageAnalyserPage() {
     shouldAutoScrollRef.current = false;
   }, []);
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    shouldAutoScrollRef.current = isNearBottom();
+  }, [isNearBottom]);
+
   useEffect(() => {
     if (shouldAutoScrollRef.current) {
       scrollChatToBottom(loading ? "auto" : "smooth");
