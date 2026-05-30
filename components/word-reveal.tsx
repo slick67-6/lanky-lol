@@ -50,7 +50,7 @@ export function WordReveal({
 
   return (
     <h1
-      className={`font-[family-name:var(--font-syne)] text-4xl font-bold leading-[1.35] tracking-tight text-cyan-50 sm:text-5xl md:text-6xl lg:text-7xl ${className}`}
+      className={`overflow-visible py-[0.12em] font-[family-name:var(--font-syne)] text-4xl font-bold leading-[1.45] tracking-tight text-cyan-50 sm:text-5xl md:text-6xl lg:text-7xl ${className}`}
     >
       {words.map((word, i) => (
         <span

@@ -15,7 +15,7 @@ export default function DocumentAnalyserPage() {
               <span className="inline-block rounded-full border border-amber-500/30 bg-amber-950/50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-200">
                 Coming soon
               </span>
-              <h2 className="mt-6 font-[family-name:var(--font-syne)] text-2xl font-bold text-cyan-50 sm:text-3xl">
+              <h2 className="mt-6 overflow-visible py-1 font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45] text-cyan-50 sm:text-3xl">
                 Document analyser is in the lab
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base">

@@ -99,7 +99,7 @@ export default function Home() {
         {/* Tools */}
         <section className="scroll-snap-section flex min-h-dvh w-full flex-col items-center justify-center px-6 py-20 snap-start">
           <FadeIn>
-            <h2 className="font-[family-name:var(--font-syne)] text-center text-2xl font-semibold text-cyan-100/90 sm:text-3xl">
+            <h2 className="overflow-visible py-1 font-[family-name:var(--font-syne)] text-center text-2xl font-semibold leading-[1.45] text-cyan-100/90 sm:text-3xl">
               Pick your tool
             </h2>
           </FadeIn>
