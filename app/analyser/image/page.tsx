@@ -327,7 +327,7 @@ export default function ImageAnalyserPage() {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
-  const handleScroll = useCallback(() => {
+  const updateChatAutoScroll = useCallback(() => {
     const nearBottom = isNearBottom();
 
     if (!nearBottom) {
@@ -486,7 +486,7 @@ export default function ImageAnalyserPage() {
 
         <div
           ref={scrollRef}
-          onScroll={handleScroll}
+          onScroll={updateChatAutoScroll}
           onTouchMove={pauseAutoScroll}
           onTouchStart={pauseAutoScroll}
           onWheel={pauseAutoScroll}
