@@ -108,8 +108,8 @@ export function LanksterGalleryAnnouncement() {
           sizes="(max-width: 640px) 92vw, 34rem"
           src={announcementPhoto}
         />
-        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/20 bg-slate-950/85 px-5 py-4 backdrop-blur sm:px-7 sm:py-5">
-          <p className="font-[family-name:var(--font-syne)] text-xl font-bold text-cyan-50 sm:text-2xl">
+        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/20 bg-slate-950/85 px-5 pb-5 pt-4 backdrop-blur sm:px-7 sm:pb-6 sm:pt-5">
+          <p className="inline-block overflow-visible px-1 pb-2 pt-1 font-[family-name:var(--font-syne)] text-xl font-bold leading-[1.6] text-cyan-50 sm:text-2xl">
             The lankster gallery is now out!
           </p>
         </div>
