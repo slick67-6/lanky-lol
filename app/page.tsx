@@ -7,7 +7,7 @@ import { ToolCard } from "@/components/tool-card";
 import Image from "next/image";
 import { WordReveal } from "@/components/word-reveal";
 
-const SHOW_HERO_IMAGE = false;
+const SHOW_HERO_IMAGE = true;
 
 
 function ImageIcon() {
@@ -81,14 +81,14 @@ export default function Home() {
           </FadeIn>
           {SHOW_HERO_IMAGE && (
             <FadeIn delay={1800}>
-              <div className="mx-auto mt-10 w-full max-w-4xl overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-900/40 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
+              <div className="mx-auto mt-8 w-full max-w-[min(88vw,28rem)] overflow-hidden rounded-3xl border border-cyan-500/20 bg-slate-950/50 shadow-[0_20px_60px_-20px_rgba(34,211,238,0.45)]">
                 <Image
                   src="/langster-gangster.png"
                   alt="Langster gangster at a futuristic workstation"
                   width={820}
                   height={1280}
                   priority
-                  className="h-[300px] w-full object-cover object-center sm:h-[380px]"
+                  className="h-auto max-h-[34dvh] w-full object-contain object-center sm:max-h-[42dvh]"
                 />
               </div>
             </FadeIn>
@@ -105,7 +105,7 @@ export default function Home() {
           </FadeIn>
           <FadeIn delay={80}>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
-              Two analyzers. One working. One in development.
+              Two analysers. One working. One in development.
             </p>
           </FadeIn>
 
@@ -113,7 +113,7 @@ export default function Home() {
             <FadeIn delay={120} className="flex w-full justify-center">
               <ToolCard
                 href="/analyser/image"
-                title="AI Image Analyzer"
+                title="AI Image Analyser"
                 description="Upload or paste any image, ask questions, get real vision-powered answers."
                 icon={<ImageIcon />}
                 badge="Live"
