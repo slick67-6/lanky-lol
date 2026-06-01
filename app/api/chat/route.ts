@@ -13,6 +13,13 @@ type ImagePayload = {
   data: string;
 };
 
+type ResponseProfile = {
+  label: "short" | "standard" | "extended";
+  maxTokens: number;
+  temperature: number;
+  topP: number;
+};
+
 type NvidiaMessage =
   | { role: "system"; content: string }
   | {
@@ -52,10 +59,30 @@ const UPSTREAM_CONNECT_TIMEOUT_MS = 8_000;
 const REQUEST_START_DEADLINE_MS = 8_500;
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
-The user may send only text, only an image, or text plus an image. Reply directly to what they sent.
-When an image is attached, describe the relevant visual details first, then answer the user's request.
-Use Markdown when it helps: ### headings, bullet or numbered lists, **bold**, *italic*, inline \`code\`, fenced code blocks, and LaTeX with $...$ or $$...$$.
-Stay safe and refuse harmful requests.`;
+Reply naturally to the user, using the text, image, or both when provided.
+Decide for yourself how brief or deep the answer should be from the user's actual request.
+Use clear Markdown when useful: headings, bullets, numbered lists with increasing numbers, tables, links, code blocks, and LaTeX-style math with $...$, \\(...\\), $$...$$, or \\[...\\].`;
+
+const SHORT_PROFILE: ResponseProfile = {
+  label: "short",
+  maxTokens: 700,
+  temperature: 0.45,
+  topP: 0.9,
+};
+
+const STANDARD_PROFILE: ResponseProfile = {
+  label: "standard",
+  maxTokens: 1400,
+  temperature: 0.62,
+  topP: 0.94,
+};
+
+const EXTENDED_PROFILE: ResponseProfile = {
+  label: "extended",
+  maxTokens: 3000,
+  temperature: 0.7,
+  topP: 0.96,
+};
 
 function parseModelList(value: string | undefined) {
   return value
@@ -76,6 +103,33 @@ function modelsForRequest(hasImage: boolean) {
   const defaults = hasImage ? DEFAULT_VISION_MODELS : DEFAULT_TEXT_MODELS;
 
   return uniqueModels([...specificModels, ...defaults, ...legacyModels]);
+}
+
+function responseProfileForRequest(message: ClientMessage): ResponseProfile {
+  const text = message.content.trim();
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const questionCount = text.split("?").length - 1;
+  const lineCount = text.split("\n").filter((line) => line.trim()).length;
+  const hasStructuredInput = /```|\n\s*[-*]\s+|\n\s*\d+[.)]\s+|\|.+\|/.test(text);
+  const hasDenseSymbols = /[=<>^{}()[\]$]/.test(text);
+  const complexityScore =
+    (message.image ? 2 : 0) +
+    (wordCount > 28 ? 1 : 0) +
+    (wordCount > 80 ? 2 : 0) +
+    (questionCount > 1 ? 1 : 0) +
+    (lineCount > 3 ? 1 : 0) +
+    (hasStructuredInput ? 2 : 0) +
+    (hasDenseSymbols ? 1 : 0);
+
+  if (complexityScore >= 4) {
+    return EXTENDED_PROFILE;
+  }
+
+  if (complexityScore >= 1 || wordCount > 14) {
+    return STANDARD_PROFILE;
+  }
+
+  return SHORT_PROFILE;
 }
 
 function parseDataUrl(dataUrl: string): ImagePayload | null {
@@ -117,7 +171,7 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
     const parsedImage = message.image ? parseDataUrl(message.image) : null;
     if (parsedImage && parsedImage.data.length > MAX_IMAGE_DATA_LENGTH) {
       throw new Error(
-        "Please upload a smaller image so the analyzer can read it without hitting token limits.",
+        "Please upload a smaller image so the analyser can read it without hitting token limits.",
       );
     }
 
@@ -248,6 +302,7 @@ export async function POST(request: Request) {
   );
 
   let nvidiaMessages: NvidiaMessage[];
+  const responseProfile = responseProfileForRequest(lastUser);
 
   try {
     nvidiaMessages = [
@@ -287,9 +342,9 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model,
           messages: nvidiaMessages,
-          max_tokens: 1000,
-          temperature: 0.7,
-          top_p: 0.95,
+          max_tokens: responseProfile.maxTokens,
+          temperature: responseProfile.temperature,
+          top_p: responseProfile.topP,
           stream: true,
         }),
         signal: controller.signal,
@@ -339,14 +394,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "That image or chat is too large for the analyzer. Try a smaller image or start a fresh chat.",
+          "That image or chat is too large for the analyser. Try a smaller image or start a fresh chat.",
       },
       { status: 413 },
     );
   }
 
   return NextResponse.json(
-    { error: "The analyzer could not get a model response. Please try again." },
+    { error: "The analyser could not get a model response. Please try again." },
     { status: 502 },
   );
 }

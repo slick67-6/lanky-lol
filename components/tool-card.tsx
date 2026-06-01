@@ -32,7 +32,7 @@ export function ToolCard({
       <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-500/25 bg-cyan-950/50 text-cyan-300 transition-colors group-hover:border-cyan-400/60 group-hover:text-cyan-200">
         {icon}
       </div>
-      <h2 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-cyan-50 sm:text-3xl">
+      <h2 className="overflow-visible py-1 font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45] text-cyan-50 sm:text-3xl">
         {title}
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-slate-400 sm:text-base">

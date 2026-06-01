@@ -24,7 +24,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
         Home
       </Link>
       <span className="h-4 w-px bg-cyan-500/20" aria-hidden />
-      <h1 className="truncate font-[family-name:var(--font-syne)] text-sm font-semibold text-cyan-50 sm:text-base">
+      <h1 className="min-w-0 overflow-visible whitespace-nowrap py-1 font-[family-name:var(--font-syne)] text-sm font-semibold leading-[1.5] text-cyan-50 sm:text-base">
         {title}
       </h1>
     </header>
