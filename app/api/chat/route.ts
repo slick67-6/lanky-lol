@@ -61,10 +61,34 @@ const REQUEST_START_DEADLINE_MS = 8_500;
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
 The user may send only text, only an image, or text plus an image. Reply directly to what they sent.
-Adapt depth to the user: answer simple factual or utility questions quickly and sharply; take more care with creative, analytical, coding, planning, or extensive requests.
+Adapt depth to the user: answer simple factual or utility questions quickly and sharply; spend noticeably more effort on creative, analytical, coding, planning, mathematical, or extensive requests.
 When an image is attached, describe the relevant visual details first, then answer the user's request.
-Use Markdown when it helps: ### headings, bullet or numbered lists, **bold**, *italic*, inline \`code\`, fenced code blocks, and LaTeX with $...$ or $$...$$.
-Stay safe and refuse harmful requests.`;
+Use rich Markdown when it helps: ### headings, bullet or numbered lists with increasing numbers, **bold**, *italic*, ~~strikethrough~~, links, tables, inline \`code\`, fenced code blocks, and LaTeX with $...$, \\(...\\), $$...$$, or \\[...\\].
+Be helpful and direct. Do not over-refuse benign or fictional requests; only set boundaries for clearly harmful, illegal, or privacy-invasive instructions.`;
+
+const QUICK_PROFILE: ResponseProfile = {
+  label: "quick",
+  maxTokens: 550,
+  temperature: 0.35,
+  topP: 0.85,
+  instruction: "Keep this response brief, direct, and useful unless the user explicitly asks for more detail.",
+};
+
+const BALANCED_PROFILE: ResponseProfile = {
+  label: "balanced",
+  maxTokens: 1200,
+  temperature: 0.62,
+  topP: 0.92,
+  instruction: "Give a clear, complete answer with enough detail to be helpful, but avoid unnecessary padding.",
+};
+
+const DEEP_PROFILE: ResponseProfile = {
+  label: "deep",
+  maxTokens: 2600,
+  temperature: 0.72,
+  topP: 0.96,
+  instruction: "Spend more effort before answering. Work through hard parts carefully, then provide a structured, higher-quality answer with nuance, examples, and caveats where useful.",
+};
 
 const QUICK_PROFILE: ResponseProfile = {
   label: "quick",
@@ -114,10 +138,17 @@ function modelsForRequest(hasImage: boolean) {
 function responseProfileForRequest(message: ClientMessage): ResponseProfile {
   const text = message.content.trim().toLowerCase();
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const deepSignals = /\b(explain|analy[sz]e|compare|plan|strategy|creative|story|essay|detailed|thorough|extensive|brainstorm|design|code|debug|review|improve|architecture|step[-\s]?by[-\s]?step)\b/.test(text);
+  const deepSignals = /\b(explain|analy[sz]e|compare|evaluate|derive|prove|calculate|solve|optimi[sz]e|plan|strategy|creative|story|essay|detailed|thorough|extensive|brainstorm|design|code|debug|review|improve|architecture|research|simulate|trade[-\s]?off|step[-\s]?by[-\s]?step|why|how would|what if)\b/.test(text);
   const quickSignals = /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|what is|who is|when is|where is|define|summari[sz]e in one sentence)\b/.test(text);
+  const structuralSignals = (text.match(/[?]/g)?.length ?? 0) > 1 || /```|\n\s*[-*]\s+|\n\s*\d+[.)]\s+/.test(text);
+  const complexityScore =
+    (message.image ? 3 : 0) +
+    (deepSignals ? 3 : 0) +
+    (structuralSignals ? 2 : 0) +
+    (wordCount > 30 ? 1 : 0) +
+    (wordCount > 70 ? 2 : 0);
 
-  if (message.image || deepSignals || wordCount > 38) {
+  if (complexityScore >= 3) {
     return DEEP_PROFILE;
   }
 

@@ -69,7 +69,7 @@ async function compressImageForChat(file: File) {
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
+  const pattern = /(\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|`[^`\n]+`|\\\([^\n]+?\\\)|\$[^$\n]+\$|\*[^*\n]+\*|_[^_\n]+_)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -79,32 +79,62 @@ function renderInline(text: string) {
     }
 
     const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
+    const key = `${match.index}-${token}`;
+    const link = token.match(/^\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+
+    if (link) {
       nodes.push(
-        <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
+        <a
+          key={key}
+          href={link[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-cyan-300 underline decoration-cyan-400/50 underline-offset-4 hover:text-cyan-100"
+        >
+          {link[1]}
+        </a>,
+      );
+    } else if (
+      (token.startsWith("**") && token.endsWith("**")) ||
+      (token.startsWith("__") && token.endsWith("__"))
+    ) {
+      nodes.push(
+        <strong key={key} className="font-semibold text-slate-50">
           {token.slice(2, -2)}
         </strong>,
       );
-    } else if (token.startsWith("*")) {
+    } else if (token.startsWith("~~") && token.endsWith("~~")) {
       nodes.push(
-        <em key={`${match.index}-italic`} className="italic text-slate-100">
-          {token.slice(1, -1)}
-        </em>,
+        <del key={key} className="text-slate-400 decoration-slate-500">
+          {token.slice(2, -2)}
+        </del>,
       );
-    } else if (token.startsWith("$")) {
+    } else if (token.startsWith("`") && token.endsWith("`")) {
       nodes.push(
-        <span key={`${match.index}-math`} className="font-medium italic text-cyan-200">
+        <code
+          key={key}
+          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
+        >
+          {token.slice(1, -1)}
+        </code>,
+      );
+    } else if (token.startsWith("\\(") && token.endsWith("\\)")) {
+      nodes.push(
+        <span key={key} className="rounded bg-cyan-950/30 px-1 font-mono text-[0.95em] text-cyan-100">
+          {token.slice(2, -2)}
+        </span>,
+      );
+    } else if (token.startsWith("$") && token.endsWith("$")) {
+      nodes.push(
+        <span key={key} className="rounded bg-cyan-950/30 px-1 font-mono text-[0.95em] text-cyan-100">
           {token.slice(1, -1)}
         </span>,
       );
     } else {
       nodes.push(
-        <code
-          key={`${match.index}-code`}
-          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
-        >
+        <em key={key} className="italic text-slate-100">
           {token.slice(1, -1)}
-        </code>,
+        </em>,
       );
     }
 
@@ -118,6 +148,27 @@ function renderInline(text: string) {
   return nodes;
 }
 
+function isTableDelimiter(line: string) {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function splitTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderDisplayMath(value: string, key: React.Key) {
+  return (
+    <div key={key} className="overflow-x-auto rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-center font-mono text-sm text-cyan-100 [touch-action:pan-x]">
+      {value.trim()}
+    </div>
+  );
+}
+
 function renderTextBlock(segment: string) {
   const lines = segment.split("\n");
   const blocks: React.ReactNode[] = [];
@@ -127,42 +178,124 @@ function renderTextBlock(segment: string) {
     const trimmed = line.trim();
 
     if (!trimmed) {
-      blocks.push(<div key={`space-${index}`} className="h-1" />);
       continue;
     }
 
-    const blockMath = trimmed.match(/^\$\$([\s\S]+)\$\$$/);
-    if (blockMath) {
-      blocks.push(
-        <p key={index} className="overflow-x-auto rounded-lg bg-slate-950/50 px-3 py-2 text-center font-semibold italic text-cyan-100">
-          {blockMath[1]}
-        </p>,
-      );
+    if (trimmed.startsWith("$$")) {
+      const mathLines = [trimmed.replace(/^\$\$\s?/, "")];
+      while (index + 1 < lines.length && !lines[index + 1].trim().endsWith("$$")) {
+        index += 1;
+        mathLines.push(lines[index]);
+      }
+      if (index + 1 < lines.length) {
+        index += 1;
+        mathLines.push(lines[index].trim().replace(/\s?\$\$$/, ""));
+      } else {
+        mathLines[mathLines.length - 1] = mathLines[mathLines.length - 1].replace(/\s?\$\$$/, "");
+      }
+      blocks.push(renderDisplayMath(mathLines.join("\n"), `math-${index}`));
       continue;
     }
 
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (trimmed.startsWith("\\[")) {
+      const mathLines = [trimmed.replace(/^\\\[\s?/, "")];
+      while (index + 1 < lines.length && !lines[index + 1].trim().endsWith("\\]")) {
+        index += 1;
+        mathLines.push(lines[index]);
+      }
+      if (index + 1 < lines.length) {
+        index += 1;
+        mathLines.push(lines[index].trim().replace(/\s?\\\]$/, ""));
+      } else {
+        mathLines[mathLines.length - 1] = mathLines[mathLines.length - 1].replace(/\s?\\\]$/, "");
+      }
+      blocks.push(renderDisplayMath(mathLines.join("\n"), `bracket-math-${index}`));
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
-      const HeadingTag = (`h${heading[1].length + 2}` as "h3" | "h4" | "h5");
+      const level = Math.min(heading[1].length + 2, 6) as 3 | 4 | 5 | 6;
+      const HeadingTag = `h${level}` as "h3" | "h4" | "h5" | "h6";
       blocks.push(
-        <HeadingTag key={index} className="mt-3 font-semibold text-cyan-50 first:mt-0">
+        <HeadingTag key={index} className="mt-3 font-semibold leading-snug text-cyan-50 first:mt-0">
           {renderInline(heading[2])}
         </HeadingTag>,
       );
       continue;
     }
 
+    if (index + 1 < lines.length && trimmed.includes("|") && isTableDelimiter(lines[index + 1])) {
+      const headers = splitTableRow(trimmed);
+      index += 1;
+      const rows: string[][] = [];
+      while (index + 1 < lines.length && lines[index + 1].trim().includes("|")) {
+        index += 1;
+        rows.push(splitTableRow(lines[index]));
+      }
+      blocks.push(
+        <div key={`table-${index}`} className="overflow-x-auto rounded-xl border border-slate-700/70 [touch-action:pan-x]">
+          <table className="min-w-full border-collapse text-left text-sm">
+            <thead className="bg-slate-900/80 text-cyan-100">
+              <tr>
+                {headers.map((header, headerIndex) => (
+                  <th key={headerIndex} className="border-b border-slate-700/70 px-3 py-2 font-semibold">
+                    {renderInline(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className="odd:bg-slate-950/30">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="border-t border-slate-800/70 px-3 py-2 align-top">
+                      {renderInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
     if (/^[-*]\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+      const items: Array<{ text: string; checked?: boolean }> = [];
+      while (index < lines.length) {
+        const current = lines[index].trim();
+        if (!current) {
+          const next = lines[index + 1]?.trim() ?? "";
+          if (/^[-*]\s+/.test(next)) {
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        if (!/^[-*]\s+/.test(current)) break;
+
+        const checkbox = current.match(/^[-*]\s+\[([ xX])\]\s+(.+)$/);
+        items.push(
+          checkbox
+            ? { checked: checkbox[1].toLowerCase() === "x", text: checkbox[2] }
+            : { text: current.replace(/^[-*]\s+/, "") },
+        );
         index += 1;
       }
       index -= 1;
       blocks.push(
-        <ul key={index} className="ml-5 list-disc space-y-1">
+        <ul key={`ul-${index}`} className="ml-5 list-disc space-y-1">
           {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
+            <li key={itemIndex} className={item.checked !== undefined ? "list-none" : undefined}>
+              {item.checked !== undefined && (
+                <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded border border-cyan-500/50 text-[0.65rem] text-cyan-200">
+                  {item.checked ? "✓" : ""}
+                </span>
+              )}
+              {renderInline(item.text)}
+            </li>
           ))}
         </ul>,
       );
@@ -171,13 +304,24 @@ function renderTextBlock(segment: string) {
 
     if (/^\d+[.)]\s+/.test(trimmed)) {
       const items: string[] = [];
-      while (index < lines.length && /^\d+[.)]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^\d+[.)]\s+/, ""));
+      while (index < lines.length) {
+        const current = lines[index].trim();
+        if (!current) {
+          const next = lines[index + 1]?.trim() ?? "";
+          if (/^\d+[.)]\s+/.test(next)) {
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        if (!/^\d+[.)]\s+/.test(current)) break;
+
+        items.push(current.replace(/^\d+[.)]\s+/, ""));
         index += 1;
       }
       index -= 1;
       blocks.push(
-        <ol key={index} className="ml-5 list-decimal space-y-1">
+        <ol key={`ol-${index}`} className="ml-5 list-decimal space-y-1">
           {items.map((item, itemIndex) => (
             <li key={itemIndex}>{renderInline(item)}</li>
           ))}
@@ -187,15 +331,29 @@ function renderTextBlock(segment: string) {
     }
 
     if (trimmed.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith(">")) {
+        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
+        index += 1;
+      }
+      index -= 1;
       blocks.push(
-        <blockquote key={index} className="border-l-2 border-cyan-500/50 pl-3 text-slate-300">
-          {renderInline(trimmed.replace(/^>\s?/, ""))}
+        <blockquote key={`quote-${index}`} className="space-y-1 border-l-2 border-cyan-500/50 pl-3 text-slate-300">
+          {quoteLines.map((quote, quoteIndex) => (
+            <p key={quoteIndex} className="whitespace-pre-wrap">
+              {renderInline(quote)}
+            </p>
+          ))}
         </blockquote>,
       );
       continue;
     }
 
-    blocks.push(<p key={index}>{renderInline(line)}</p>);
+    blocks.push(
+      <p key={index} className="whitespace-pre-wrap">
+        {renderInline(line)}
+      </p>,
+    );
   }
 
   return blocks;
@@ -210,7 +368,7 @@ function AssistantContent({ content, isStreaming = false }: { content: string; i
           return (
             <pre
               key={`code-${i}`}
-              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3"
+              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3 [touch-action:pan-x]"
             >
               <code className="font-mono text-[0.86em] text-cyan-100">{segment.trim()}</code>
             </pre>
@@ -218,7 +376,7 @@ function AssistantContent({ content, isStreaming = false }: { content: string; i
         }
 
         return (
-          <div key={`txt-${i}`} className="space-y-1 whitespace-pre-wrap">
+          <div key={`txt-${i}`} className="space-y-2">
             {renderTextBlock(segment)}
           </div>
         );
@@ -320,6 +478,28 @@ export default function ImageAnalyserPage() {
     const el = scrollRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < AUTO_SCROLL_THRESHOLD;
+  }, []);
+
+  const scrollChatToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const updateChatAutoScroll = useCallback(() => {
+    const nearBottom = isNearBottom();
+
+    if (!nearBottom) {
+      shouldAutoScrollRef.current = false;
+      return;
+    }
+
+    if (!loading) {
+      shouldAutoScrollRef.current = true;
+    }
+  }, [isNearBottom, loading]);
+
+  const pauseAutoScroll = useCallback(() => {
+    shouldAutoScrollRef.current = false;
   }, []);
 
   const scrollChatToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
@@ -499,7 +679,7 @@ export default function ImageAnalyserPage() {
           onTouchMove={pauseAutoScroll}
           onTouchStart={pauseAutoScroll}
           onWheel={pauseAutoScroll}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [touch-action:pan-y] sm:px-6"
+          className="min-h-0 flex-1 overflow-auto overscroll-auto px-4 py-4 [touch-action:pan-x_pan-y] sm:px-6"
         >
           <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
             {messages.map((m) => (
@@ -607,7 +787,7 @@ export default function ImageAnalyserPage() {
             </button>
             <div className="relative shrink-0">
               {plusMenuOpen && (
-                <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
+                <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] origin-bottom-left animate-[plus-menu-in_180ms_ease-out] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
                   {COMING_SOON_FEATURES.map((feature) => (
                     <div key={feature} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-slate-400">
                       <span>{feature}</span>
@@ -621,7 +801,7 @@ export default function ImageAnalyserPage() {
               <button
                 type="button"
                 onClick={() => setPlusMenuOpen((open) => !open)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all duration-200 hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100 ${plusMenuOpen ? "rotate-45 scale-105" : "rotate-0"}`}
                 aria-expanded={plusMenuOpen}
                 aria-label="Open coming soon chat features"
               >
@@ -632,6 +812,7 @@ export default function ImageAnalyserPage() {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setPlusMenuOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
