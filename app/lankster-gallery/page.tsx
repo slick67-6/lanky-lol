@@ -18,7 +18,7 @@ export default function LanksterGalleryPage() {
               <span className="inline-block rounded-full border border-cyan-500/30 bg-cyan-950/50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-200">
                 Lankster gallery
               </span>
-              <h1 className="mt-6 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
+              <h1 className="mt-6 overflow-visible py-1 font-[family-name:var(--font-syne)] text-3xl font-bold leading-[1.45] text-cyan-50 sm:text-4xl">
                 In development
               </h1>
             </div>

@@ -14,6 +14,13 @@ type Message = {
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_SIDE = 900;
 const COMPRESSED_IMAGE_QUALITY = 0.68;
+const AUTO_SCROLL_THRESHOLD = 120;
+const COMING_SOON_FEATURES = [
+  "Chess analysis and assistance",
+  "Deeper thinking capabilities",
+  "Musical capabilities and file creation",
+  "Online search capabilities",
+];
 
 function canCanvasRead(file: File) {
   return ["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"].includes(file.type);
@@ -62,7 +69,7 @@ async function compressImageForChat(file: File) {
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
+  const pattern = /(\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|\*\*[^*\n]+\*\*|__[^_\n]+__|~~[^~\n]+~~|`[^`\n]+`|\\\([^\n]+?\\\)|\$[^$\n]+\$|\*[^*\n]+\*|_[^_\n]+_)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -72,32 +79,62 @@ function renderInline(text: string) {
     }
 
     const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
+    const key = `${match.index}-${token}`;
+    const link = token.match(/^\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)$/);
+
+    if (link) {
       nodes.push(
-        <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
+        <a
+          key={key}
+          href={link[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-cyan-300 underline decoration-cyan-400/50 underline-offset-4 hover:text-cyan-100"
+        >
+          {link[1]}
+        </a>,
+      );
+    } else if (
+      (token.startsWith("**") && token.endsWith("**")) ||
+      (token.startsWith("__") && token.endsWith("__"))
+    ) {
+      nodes.push(
+        <strong key={key} className="font-semibold text-slate-50">
           {token.slice(2, -2)}
         </strong>,
       );
-    } else if (token.startsWith("*")) {
+    } else if (token.startsWith("~~") && token.endsWith("~~")) {
       nodes.push(
-        <em key={`${match.index}-italic`} className="italic text-slate-100">
-          {token.slice(1, -1)}
-        </em>,
+        <del key={key} className="text-slate-400 decoration-slate-500">
+          {token.slice(2, -2)}
+        </del>,
       );
-    } else if (token.startsWith("$")) {
+    } else if (token.startsWith("`") && token.endsWith("`")) {
       nodes.push(
-        <span key={`${match.index}-math`} className="font-medium italic text-cyan-200">
+        <code
+          key={key}
+          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
+        >
+          {token.slice(1, -1)}
+        </code>,
+      );
+    } else if (token.startsWith("\\(") && token.endsWith("\\)")) {
+      nodes.push(
+        <span key={key} className="rounded bg-cyan-950/30 px-1 font-mono text-[0.95em] text-cyan-100">
+          {token.slice(2, -2)}
+        </span>,
+      );
+    } else if (token.startsWith("$") && token.endsWith("$")) {
+      nodes.push(
+        <span key={key} className="rounded bg-cyan-950/30 px-1 font-mono text-[0.95em] text-cyan-100">
           {token.slice(1, -1)}
         </span>,
       );
     } else {
       nodes.push(
-        <code
-          key={`${match.index}-code`}
-          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
-        >
+        <em key={key} className="italic text-slate-100">
           {token.slice(1, -1)}
-        </code>,
+        </em>,
       );
     }
 
@@ -111,6 +148,27 @@ function renderInline(text: string) {
   return nodes;
 }
 
+function isTableDelimiter(line: string) {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+}
+
+function splitTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderDisplayMath(value: string, key: React.Key) {
+  return (
+    <div key={key} className="overflow-x-auto rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-center font-mono text-sm text-cyan-100 [touch-action:pan-x]">
+      {value.trim()}
+    </div>
+  );
+}
+
 function renderTextBlock(segment: string) {
   const lines = segment.split("\n");
   const blocks: React.ReactNode[] = [];
@@ -120,42 +178,124 @@ function renderTextBlock(segment: string) {
     const trimmed = line.trim();
 
     if (!trimmed) {
-      blocks.push(<div key={`space-${index}`} className="h-1" />);
       continue;
     }
 
-    const blockMath = trimmed.match(/^\$\$([\s\S]+)\$\$$/);
-    if (blockMath) {
-      blocks.push(
-        <p key={index} className="overflow-x-auto rounded-lg bg-slate-950/50 px-3 py-2 text-center font-semibold italic text-cyan-100">
-          {blockMath[1]}
-        </p>,
-      );
+    if (trimmed.startsWith("$$")) {
+      const mathLines = [trimmed.replace(/^\$\$\s?/, "")];
+      while (index + 1 < lines.length && !lines[index + 1].trim().endsWith("$$")) {
+        index += 1;
+        mathLines.push(lines[index]);
+      }
+      if (index + 1 < lines.length) {
+        index += 1;
+        mathLines.push(lines[index].trim().replace(/\s?\$\$$/, ""));
+      } else {
+        mathLines[mathLines.length - 1] = mathLines[mathLines.length - 1].replace(/\s?\$\$$/, "");
+      }
+      blocks.push(renderDisplayMath(mathLines.join("\n"), `math-${index}`));
       continue;
     }
 
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (trimmed.startsWith("\\[")) {
+      const mathLines = [trimmed.replace(/^\\\[\s?/, "")];
+      while (index + 1 < lines.length && !lines[index + 1].trim().endsWith("\\]")) {
+        index += 1;
+        mathLines.push(lines[index]);
+      }
+      if (index + 1 < lines.length) {
+        index += 1;
+        mathLines.push(lines[index].trim().replace(/\s?\\\]$/, ""));
+      } else {
+        mathLines[mathLines.length - 1] = mathLines[mathLines.length - 1].replace(/\s?\\\]$/, "");
+      }
+      blocks.push(renderDisplayMath(mathLines.join("\n"), `bracket-math-${index}`));
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
-      const HeadingTag = (`h${heading[1].length + 2}` as "h3" | "h4" | "h5");
+      const level = Math.min(heading[1].length + 2, 6) as 3 | 4 | 5 | 6;
+      const HeadingTag = `h${level}` as "h3" | "h4" | "h5" | "h6";
       blocks.push(
-        <HeadingTag key={index} className="mt-3 font-semibold text-cyan-50 first:mt-0">
+        <HeadingTag key={index} className="mt-3 font-semibold leading-snug text-cyan-50 first:mt-0">
           {renderInline(heading[2])}
         </HeadingTag>,
       );
       continue;
     }
 
+    if (index + 1 < lines.length && trimmed.includes("|") && isTableDelimiter(lines[index + 1])) {
+      const headers = splitTableRow(trimmed);
+      index += 1;
+      const rows: string[][] = [];
+      while (index + 1 < lines.length && lines[index + 1].trim().includes("|")) {
+        index += 1;
+        rows.push(splitTableRow(lines[index]));
+      }
+      blocks.push(
+        <div key={`table-${index}`} className="overflow-x-auto rounded-xl border border-slate-700/70 [touch-action:pan-x]">
+          <table className="min-w-full border-collapse text-left text-sm">
+            <thead className="bg-slate-900/80 text-cyan-100">
+              <tr>
+                {headers.map((header, headerIndex) => (
+                  <th key={headerIndex} className="border-b border-slate-700/70 px-3 py-2 font-semibold">
+                    {renderInline(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className="odd:bg-slate-950/30">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="border-t border-slate-800/70 px-3 py-2 align-top">
+                      {renderInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
     if (/^[-*]\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+      const items: Array<{ text: string; checked?: boolean }> = [];
+      while (index < lines.length) {
+        const current = lines[index].trim();
+        if (!current) {
+          const next = lines[index + 1]?.trim() ?? "";
+          if (/^[-*]\s+/.test(next)) {
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        if (!/^[-*]\s+/.test(current)) break;
+
+        const checkbox = current.match(/^[-*]\s+\[([ xX])\]\s+(.+)$/);
+        items.push(
+          checkbox
+            ? { checked: checkbox[1].toLowerCase() === "x", text: checkbox[2] }
+            : { text: current.replace(/^[-*]\s+/, "") },
+        );
         index += 1;
       }
       index -= 1;
       blocks.push(
-        <ul key={index} className="ml-5 list-disc space-y-1">
+        <ul key={`ul-${index}`} className="ml-5 list-disc space-y-1">
           {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
+            <li key={itemIndex} className={item.checked !== undefined ? "list-none" : undefined}>
+              {item.checked !== undefined && (
+                <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded border border-cyan-500/50 text-[0.65rem] text-cyan-200">
+                  {item.checked ? "✓" : ""}
+                </span>
+              )}
+              {renderInline(item.text)}
+            </li>
           ))}
         </ul>,
       );
@@ -164,13 +304,24 @@ function renderTextBlock(segment: string) {
 
     if (/^\d+[.)]\s+/.test(trimmed)) {
       const items: string[] = [];
-      while (index < lines.length && /^\d+[.)]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^\d+[.)]\s+/, ""));
+      while (index < lines.length) {
+        const current = lines[index].trim();
+        if (!current) {
+          const next = lines[index + 1]?.trim() ?? "";
+          if (/^\d+[.)]\s+/.test(next)) {
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        if (!/^\d+[.)]\s+/.test(current)) break;
+
+        items.push(current.replace(/^\d+[.)]\s+/, ""));
         index += 1;
       }
       index -= 1;
       blocks.push(
-        <ol key={index} className="ml-5 list-decimal space-y-1">
+        <ol key={`ol-${index}`} className="ml-5 list-decimal space-y-1">
           {items.map((item, itemIndex) => (
             <li key={itemIndex}>{renderInline(item)}</li>
           ))}
@@ -180,21 +331,35 @@ function renderTextBlock(segment: string) {
     }
 
     if (trimmed.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith(">")) {
+        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
+        index += 1;
+      }
+      index -= 1;
       blocks.push(
-        <blockquote key={index} className="border-l-2 border-cyan-500/50 pl-3 text-slate-300">
-          {renderInline(trimmed.replace(/^>\s?/, ""))}
+        <blockquote key={`quote-${index}`} className="space-y-1 border-l-2 border-cyan-500/50 pl-3 text-slate-300">
+          {quoteLines.map((quote, quoteIndex) => (
+            <p key={quoteIndex} className="whitespace-pre-wrap">
+              {renderInline(quote)}
+            </p>
+          ))}
         </blockquote>,
       );
       continue;
     }
 
-    blocks.push(<p key={index}>{renderInline(line)}</p>);
+    blocks.push(
+      <p key={index} className="whitespace-pre-wrap">
+        {renderInline(line)}
+      </p>,
+    );
   }
 
   return blocks;
 }
 
-function AssistantContent({ content }: { content: string }) {
+function AssistantContent({ content, isStreaming = false }: { content: string; isStreaming?: boolean }) {
   const segments = content.split(/```([\s\S]*?)```/g);
   return (
     <div className="space-y-2">
@@ -203,7 +368,7 @@ function AssistantContent({ content }: { content: string }) {
           return (
             <pre
               key={`code-${i}`}
-              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3"
+              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3 [touch-action:pan-x]"
             >
               <code className="font-mono text-[0.86em] text-cyan-100">{segment.trim()}</code>
             </pre>
@@ -211,11 +376,14 @@ function AssistantContent({ content }: { content: string }) {
         }
 
         return (
-          <div key={`txt-${i}`} className="space-y-1 whitespace-pre-wrap">
+          <div key={`txt-${i}`} className="space-y-2">
             {renderTextBlock(segment)}
           </div>
         );
       })}
+      {isStreaming && (
+        <span className="inline-block h-5 w-2 translate-y-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.75)]" aria-hidden />
+      )}
     </div>
   );
 }
@@ -233,12 +401,17 @@ export default function ImageAnalyserPage() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const animateAssistantReply = useCallback(async (reply: string) => {
     const messageId = crypto.randomUUID();
+    setStreamingMessageId(messageId);
     setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
 
     const prefersReducedMotion =
@@ -249,6 +422,7 @@ export default function ImageAnalyserPage() {
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
       );
+      setStreamingMessageId(null);
       return;
     }
 
@@ -262,6 +436,7 @@ export default function ImageAnalyserPage() {
         requestAnimationFrame(() => resolve());
       });
     }
+    setStreamingMessageId(null);
   }, []);
 
 
@@ -271,6 +446,7 @@ export default function ImageAnalyserPage() {
     const decoder = new TextDecoder();
     let reply = "";
 
+    setStreamingMessageId(messageId);
     setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
 
     try {
@@ -289,6 +465,7 @@ export default function ImageAnalyserPage() {
         prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
       );
     } finally {
+      setStreamingMessageId(null);
       reader.releaseLock();
     }
 
@@ -297,14 +474,39 @@ export default function ImageAnalyserPage() {
     }
   }, []);
 
-  const scrollToBottom = useCallback(() => {
+  const isNearBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < AUTO_SCROLL_THRESHOLD;
+  }, []);
+
+  const scrollChatToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const updateChatAutoScroll = useCallback(() => {
+    const nearBottom = isNearBottom();
+
+    if (!nearBottom) {
+      shouldAutoScrollRef.current = false;
+      return;
+    }
+
+    if (!loading) {
+      shouldAutoScrollRef.current = true;
+    }
+  }, [isNearBottom, loading]);
+
+  const pauseAutoScroll = useCallback(() => {
+    shouldAutoScrollRef.current = false;
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading, scrollToBottom]);
+    if (shouldAutoScrollRef.current) {
+      scrollChatToBottom(loading ? "auto" : "smooth");
+    }
+  }, [messages, loading, scrollChatToBottom]);
 
   const attachFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
@@ -340,11 +542,17 @@ export default function ImageAnalyserPage() {
     };
 
     const nextMessages = [...messages.filter((m) => m.id !== "welcome"), userMsg];
+    shouldAutoScrollRef.current = true;
     setMessages(nextMessages);
     setInput("");
     setPendingImage(null);
+    setPlusMenuOpen(false);
     setLoading(true);
     setError(null);
+    requestAnimationFrame(() => scrollChatToBottom("smooth"));
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const latestImageMessageId = [...nextMessages]
@@ -362,6 +570,7 @@ export default function ImageAnalyserPage() {
         body: JSON.stringify({
           messages: apiMessages,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -371,7 +580,7 @@ export default function ImageAnalyserPage() {
         try {
           data = rawResponse ? (JSON.parse(rawResponse) as { error?: string }) : {};
         } catch {
-          const fallbackMessage = rawResponse.trim() || "The analyzer returned an unreadable response.";
+          const fallbackMessage = rawResponse.trim() || "The analyser returned an unreadable response.";
           throw new Error(fallbackMessage);
         }
 
@@ -387,11 +596,25 @@ export default function ImageAnalyserPage() {
       }
 
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setError(null);
+      } else {
+        setError(e instanceof Error ? e.message : "Something went wrong.");
+      }
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      setStreamingMessageId(null);
       setLoading(false);
       textareaRef.current?.focus();
     }
+  };
+
+  const stopResponse = () => {
+    abortControllerRef.current?.abort();
+    setLoading(false);
+    setStreamingMessageId(null);
   };
 
   useEffect(() => {
@@ -417,52 +640,59 @@ export default function ImageAnalyserPage() {
     <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <SiteHeader title="AI Image Analyzer" />
+        <SiteHeader title="AI Image Analyser" />
 
         <div
           ref={scrollRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          onScroll={updateChatAutoScroll}
+          onTouchMove={pauseAutoScroll}
+          onTouchStart={pauseAutoScroll}
+          onWheel={pauseAutoScroll}
+          className="min-h-0 flex-1 overflow-auto overscroll-auto px-4 py-4 [touch-action:pan-x_pan-y] sm:px-6"
         >
           <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
             {messages.map((m) => (
               <div
                 key={m.id}
-                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`group flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[96%] rounded-2xl px-3.5 py-3 text-sm leading-relaxed sm:max-w-[85%] sm:px-4 sm:text-base ${
+                  className={`relative max-w-[96%] rounded-[1.35rem] px-3.5 py-3 text-sm leading-relaxed shadow-2xl transition-all duration-300 sm:max-w-[85%] sm:px-4 sm:text-base ${
                     m.role === "user"
-                      ? "border border-cyan-500/30 bg-cyan-950/60 text-cyan-50"
-                      : "border border-slate-700/60 bg-slate-900/70 text-slate-200"
+                      ? "border border-cyan-400/25 bg-cyan-500/10 text-cyan-50 shadow-cyan-950/30"
+                      : "border border-slate-700/60 bg-slate-950/70 text-slate-200 shadow-slate-950/50 backdrop-blur-xl"
                   }`}
                 >
+                  {m.role === "assistant" && (
+                    <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">
+                      <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
+                      {streamingMessageId === m.id ? "Thinking live" : "Lanky AI"}
+                    </div>
+                  )}
                   {m.imagePreview && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={m.imagePreview}
                       alt="Uploaded"
-                      className="mb-3 max-h-56 w-full rounded-lg object-contain"
+                      className="mb-3 max-h-56 w-full rounded-xl border border-white/10 object-contain"
                     />
                   )}
                   {m.role === "assistant" ? (
-                    <AssistantContent content={m.content} />
+                    <AssistantContent content={m.content} isStreaming={streamingMessageId === m.id} />
                   ) : (
                     <p className="whitespace-pre-wrap">{m.content}</p>
                   )}
                 </div>
               </div>
             ))}
-            {loading && (
+            {loading && !streamingMessageId && (
               <div className="flex justify-start">
-                <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 px-4 py-3 text-sm text-slate-400">
-                  <span className="inline-flex gap-1">
-                    <span className="animate-pulse">●</span>
-                    <span className="animate-pulse [animation-delay:150ms]">
-                      ●
-                    </span>
-                    <span className="animate-pulse [animation-delay:300ms]">
-                      ●
-                    </span>
+                <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/70 px-4 py-3 text-sm text-slate-400 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+                  <div className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Preparing response</div>
+                  <span className="inline-flex gap-1.5">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:300ms]" />
                   </span>
                 </div>
               </div>
@@ -511,23 +741,47 @@ export default function ImageAnalyserPage() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/25 bg-cyan-950/50 text-cyan-400 transition-colors hover:border-cyan-400/50 hover:text-cyan-200"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
               aria-label="Attach image"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
                   d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
                   stroke="currentColor"
-                  strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  strokeWidth="1.5"
                 />
               </svg>
             </button>
+            <div className="relative shrink-0">
+              {plusMenuOpen && (
+                <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] origin-bottom-left animate-[plus-menu-in_180ms_ease-out] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
+                  {COMING_SOON_FEATURES.map((feature) => (
+                    <div key={feature} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-slate-400">
+                      <span>{feature}</span>
+                      <span className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">
+                        (coming soon)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setPlusMenuOpen((open) => !open)}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all duration-200 hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100 ${plusMenuOpen ? "rotate-45 scale-105" : "rotate-0"}`}
+                aria-expanded={plusMenuOpen}
+                aria-label="Open coming soon chat features"
+              >
+                +
+              </button>
+            </div>
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setPlusMenuOpen(false)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -535,16 +789,18 @@ export default function ImageAnalyserPage() {
                 }
               }}
               rows={1}
-              placeholder="Message or paste an image…"
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-slate-700/80 bg-slate-900/80 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 sm:text-base"
+              placeholder={loading ? "You can scroll or stop while I answer…" : "Message or paste an image…"}
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 shadow-inner shadow-slate-950/60 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 sm:text-base"
             />
             <button
               type="button"
-              onClick={send}
-              disabled={loading || (!input.trim() && !pendingImage)}
-              className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={loading ? stopResponse : send}
+              disabled={!loading && !input.trim() && !pendingImage}
+              className={`flex h-11 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                loading ? "bg-rose-600 hover:bg-rose-500" : "bg-cyan-600 hover:bg-cyan-500"
+              }`}
             >
-              Send
+              {loading ? "Stop" : "Send"}
             </button>
           </div>
         </div>

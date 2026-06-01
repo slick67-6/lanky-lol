@@ -13,6 +13,14 @@ type ImagePayload = {
   data: string;
 };
 
+type ResponseProfile = {
+  label: "quick" | "balanced" | "deep";
+  maxTokens: number;
+  temperature: number;
+  topP: number;
+  instruction: string;
+};
+
 type NvidiaMessage =
   | { role: "system"; content: string }
   | {
@@ -53,9 +61,34 @@ const REQUEST_START_DEADLINE_MS = 8_500;
 
 const SYSTEM = `You are a capable AI assistant on lanky.lol.
 The user may send only text, only an image, or text plus an image. Reply directly to what they sent.
+Adapt depth to the user: answer simple factual or utility questions quickly and sharply; spend noticeably more effort on creative, analytical, coding, planning, mathematical, or extensive requests.
 When an image is attached, describe the relevant visual details first, then answer the user's request.
-Use Markdown when it helps: ### headings, bullet or numbered lists, **bold**, *italic*, inline \`code\`, fenced code blocks, and LaTeX with $...$ or $$...$$.
-Stay safe and refuse harmful requests.`;
+Use rich Markdown when it helps: ### headings, bullet or numbered lists with increasing numbers, **bold**, *italic*, ~~strikethrough~~, links, tables, inline \`code\`, fenced code blocks, and LaTeX with $...$, \\(...\\), $$...$$, or \\[...\\].
+Be helpful and direct. Do not over-refuse benign or fictional requests; only set boundaries for clearly harmful, illegal, or privacy-invasive instructions.`;
+
+const QUICK_PROFILE: ResponseProfile = {
+  label: "quick",
+  maxTokens: 550,
+  temperature: 0.35,
+  topP: 0.85,
+  instruction: "Keep this response brief, direct, and useful unless the user explicitly asks for more detail.",
+};
+
+const BALANCED_PROFILE: ResponseProfile = {
+  label: "balanced",
+  maxTokens: 1200,
+  temperature: 0.62,
+  topP: 0.92,
+  instruction: "Give a clear, complete answer with enough detail to be helpful, but avoid unnecessary padding.",
+};
+
+const DEEP_PROFILE: ResponseProfile = {
+  label: "deep",
+  maxTokens: 2600,
+  temperature: 0.72,
+  topP: 0.96,
+  instruction: "Spend more effort before answering. Work through hard parts carefully, then provide a structured, higher-quality answer with nuance, examples, and caveats where useful.",
+};
 
 function parseModelList(value: string | undefined) {
   return value
@@ -76,6 +109,30 @@ function modelsForRequest(hasImage: boolean) {
   const defaults = hasImage ? DEFAULT_VISION_MODELS : DEFAULT_TEXT_MODELS;
 
   return uniqueModels([...specificModels, ...defaults, ...legacyModels]);
+}
+
+function responseProfileForRequest(message: ClientMessage): ResponseProfile {
+  const text = message.content.trim().toLowerCase();
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const deepSignals = /\b(explain|analy[sz]e|compare|evaluate|derive|prove|calculate|solve|optimi[sz]e|plan|strategy|creative|story|essay|detailed|thorough|extensive|brainstorm|design|code|debug|review|improve|architecture|research|simulate|trade[-\s]?off|step[-\s]?by[-\s]?step|why|how would|what if)\b/.test(text);
+  const quickSignals = /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|what is|who is|when is|where is|define|summari[sz]e in one sentence)\b/.test(text);
+  const structuralSignals = (text.match(/[?]/g)?.length ?? 0) > 1 || /```|\n\s*[-*]\s+|\n\s*\d+[.)]\s+/.test(text);
+  const complexityScore =
+    (message.image ? 3 : 0) +
+    (deepSignals ? 3 : 0) +
+    (structuralSignals ? 2 : 0) +
+    (wordCount > 30 ? 1 : 0) +
+    (wordCount > 70 ? 2 : 0);
+
+  if (complexityScore >= 3) {
+    return DEEP_PROFILE;
+  }
+
+  if (quickSignals || wordCount <= 12) {
+    return QUICK_PROFILE;
+  }
+
+  return BALANCED_PROFILE;
 }
 
 function parseDataUrl(dataUrl: string): ImagePayload | null {
@@ -117,7 +174,7 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
     const parsedImage = message.image ? parseDataUrl(message.image) : null;
     if (parsedImage && parsedImage.data.length > MAX_IMAGE_DATA_LENGTH) {
       throw new Error(
-        "Please upload a smaller image so the analyzer can read it without hitting token limits.",
+        "Please upload a smaller image so the analyser can read it without hitting token limits.",
       );
     }
 
@@ -248,10 +305,11 @@ export async function POST(request: Request) {
   );
 
   let nvidiaMessages: NvidiaMessage[];
+  const responseProfile = responseProfileForRequest(lastUser);
 
   try {
     nvidiaMessages = [
-      { role: "system", content: SYSTEM },
+      { role: "system", content: `${SYSTEM}\n\nResponse mode: ${responseProfile.label}. ${responseProfile.instruction}` },
       ...toNvidiaMessages(compactMessages),
     ];
   } catch (error) {
@@ -287,9 +345,9 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model,
           messages: nvidiaMessages,
-          max_tokens: 1000,
-          temperature: 0.7,
-          top_p: 0.95,
+          max_tokens: responseProfile.maxTokens,
+          temperature: responseProfile.temperature,
+          top_p: responseProfile.topP,
           stream: true,
         }),
         signal: controller.signal,
@@ -339,14 +397,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "That image or chat is too large for the analyzer. Try a smaller image or start a fresh chat.",
+          "That image or chat is too large for the analyser. Try a smaller image or start a fresh chat.",
       },
       { status: 413 },
     );
   }
 
   return NextResponse.json(
-    { error: "The analyzer could not get a model response. Please try again." },
+    { error: "The analyser could not get a model response. Please try again." },
     { status: 502 },
   );
 }
