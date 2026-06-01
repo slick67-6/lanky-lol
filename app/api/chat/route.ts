@@ -84,6 +84,30 @@ const EXTENDED_PROFILE: ResponseProfile = {
   topP: 0.96,
 };
 
+const QUICK_PROFILE: ResponseProfile = {
+  label: "quick",
+  maxTokens: 450,
+  temperature: 0.35,
+  topP: 0.85,
+  instruction: "Keep this response brief, direct, and useful unless the user explicitly asks for more detail.",
+};
+
+const BALANCED_PROFILE: ResponseProfile = {
+  label: "balanced",
+  maxTokens: 1000,
+  temperature: 0.65,
+  topP: 0.92,
+  instruction: "Give a clear, complete answer with enough detail to be helpful, but avoid unnecessary padding.",
+};
+
+const DEEP_PROFILE: ResponseProfile = {
+  label: "deep",
+  maxTokens: 1800,
+  temperature: 0.82,
+  topP: 0.96,
+  instruction: "Think through the request carefully and provide a higher-quality, more developed answer with structure and nuance.",
+};
+
 function parseModelList(value: string | undefined) {
   return value
     ?.split(",")
@@ -306,7 +330,7 @@ export async function POST(request: Request) {
 
   try {
     nvidiaMessages = [
-      { role: "system", content: SYSTEM },
+      { role: "system", content: `${SYSTEM}\n\nResponse mode: ${responseProfile.label}. ${responseProfile.instruction}` },
       ...toNvidiaMessages(compactMessages),
     ];
   } catch (error) {
