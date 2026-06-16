@@ -54,40 +54,41 @@ const DEFAULT_VISION_MODELS = [
   "meta/llama-4-maverick-17b-128e-instruct",
 ];
 
-const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_MESSAGES = 16;
 const MAX_IMAGE_DATA_LENGTH = 4_000_000;
 const UPSTREAM_CONNECT_TIMEOUT_MS = 8_000;
 const REQUEST_START_DEADLINE_MS = 8_500;
 
-const SYSTEM = `You are a capable AI assistant on lanky.lol.
-The user may send only text, only an image, or text plus an image. Reply directly to what they sent.
-Adapt depth to the user: answer simple factual or utility questions quickly and sharply; take more care with creative, analytical, coding, planning, or extensive requests.
-When an image is attached, describe the relevant visual details first, then answer the user's request.
-Use Markdown when it helps: ### headings, bullet or numbered lists, **bold**, *italic*, inline \`code\`, fenced code blocks, and LaTeX with $...$ or $$...$$.
-Stay safe and refuse harmful requests.`;
+const SYSTEM = `You are Lanky AI, a capable, direct assistant on lanky.lol.
+There are no site-imposed style or topic restrictions: answer the user's actual request without artificial brevity, canned refusals, or unnecessary disclaimers.
+The user may send text, an image, or text plus an image. Always use the provided image context when it exists, and treat follow-up questions as referring to the most recent attached image unless the user says otherwise.
+For image tasks, identify the relevant visual details before giving conclusions, comparisons, OCR, debugging help, or recommendations.
+For coding tasks, behave like a senior engineer: reason carefully, ask only when truly blocked, provide correct runnable code, mention assumptions, handle edge cases, and keep explanations practical.
+For follow-ups, preserve continuity with the previous conversation, avoid repeating the whole answer, and move the task forward with concrete next steps.
+Use full GitHub-Flavored Markdown whenever useful: headings, paragraphs, bullet and numbered lists, task lists, tables, blockquotes, links, **bold**, *italic*, ~~strikethrough~~, inline \`code\`, fenced code blocks with language names, and LaTeX with $...$ or $$...$$.`;
 
 const QUICK_PROFILE: ResponseProfile = {
   label: "quick",
-  maxTokens: 450,
+  maxTokens: 700,
   temperature: 0.35,
   topP: 0.85,
-  instruction: "Keep this response brief, direct, and useful unless the user explicitly asks for more detail.",
+  instruction: "Keep this response concise, direct, and useful while still answering every part of the request.",
 };
 
 const BALANCED_PROFILE: ResponseProfile = {
   label: "balanced",
-  maxTokens: 1000,
+  maxTokens: 1400,
   temperature: 0.65,
   topP: 0.92,
-  instruction: "Give a clear, complete answer with enough detail to be helpful, but avoid unnecessary padding.",
+  instruction: "Give a clear, complete answer with useful structure, examples, and follow-up guidance when it helps.",
 };
 
 const DEEP_PROFILE: ResponseProfile = {
   label: "deep",
-  maxTokens: 1800,
+  maxTokens: 2600,
   temperature: 0.82,
   topP: 0.96,
-  instruction: "Think through the request carefully and provide a higher-quality, more developed answer with structure and nuance.",
+  instruction: "Think through the request carefully and provide a robust, polished answer with structure, nuance, edge cases, and practical next steps.",
 };
 
 function parseModelList(value: string | undefined) {
@@ -145,11 +146,22 @@ function compactMessagesForModel(messages: ClientMessage[]): ClientMessage[] {
     }
   }
 
-  return recentMessages.map((message, index) => ({
+  const compacted = recentMessages.map((message, index) => ({
     role: message.role,
     content: message.content,
     image: index === latestImageIndex ? message.image : undefined,
   }));
+
+  if (latestImageIndex >= 0) {
+    const imageMessage = compacted[latestImageIndex];
+    imageMessage.content = imageMessage.content.trim()
+      ? `${imageMessage.content}
+
+[Image context: this is the active image for later follow-up questions.]`
+      : "[Image context: this is the active image for later follow-up questions.]";
+  }
+
+  return compacted;
 }
 
 function timeoutSignal(timeoutMs: number) {

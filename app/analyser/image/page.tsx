@@ -15,11 +15,18 @@ const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_SIDE = 900;
 const COMPRESSED_IMAGE_QUALITY = 0.68;
 const AUTO_SCROLL_THRESHOLD = 120;
-const COMING_SOON_FEATURES = [
-  "Chess analysis and assistance",
-  "Deeper thinking capabilities",
-  "Musical capabilities and file creation",
-  "Online search capabilities",
+const AI_CAPABILITIES = [
+  "Persistent image context for follow-up questions",
+  "Full Markdown rendering for rich answers",
+  "Stronger coding, debugging, and planning responses",
+  "Cleaner streaming with improved readability",
+];
+
+const PROMPT_SUGGESTIONS = [
+  "Explain this image in detail",
+  "Extract all visible text",
+  "What should I improve?",
+  "Write code for this UI",
 ];
 
 function canCanvasRead(file: File) {
@@ -69,7 +76,7 @@ async function compressImageForChat(file: File) {
 
 function renderInline(text: string) {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
+  const pattern = /(\[[^\]\n]+\]\([^)\s]+\)|\*\*[^*\n]+\*\*|~~[^~\n]+~~|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -79,11 +86,30 @@ function renderInline(text: string) {
     }
 
     const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
+    const link = token.match(/^\[([^\]\n]+)\]\(([^)\s]+)\)$/);
+    if (link) {
+      nodes.push(
+        <a
+          key={`${match.index}-link`}
+          href={link[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 hover:text-cyan-100"
+        >
+          {link[1]}
+        </a>,
+      );
+    } else if (token.startsWith("**") && token.endsWith("**")) {
       nodes.push(
         <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
           {token.slice(2, -2)}
         </strong>,
+      );
+    } else if (token.startsWith("~~") && token.endsWith("~~")) {
+      nodes.push(
+        <del key={`${match.index}-strike`} className="text-slate-300 decoration-slate-500">
+          {token.slice(2, -2)}
+        </del>,
       );
     } else if (token.startsWith("*")) {
       nodes.push(
@@ -152,17 +178,26 @@ function renderTextBlock(segment: string) {
       continue;
     }
 
-    if (/^[-*]\s+/.test(trimmed)) {
-      const items: string[] = [];
+    if (/^[-*]\s+|^[-*]\s+\[[ xX]\]\s+/.test(trimmed)) {
+      const items: Array<{ text: string; checked?: boolean }> = [];
       while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+        const item = lines[index].trim().replace(/^[-*]\s+/, "");
+        const task = item.match(/^\[([ xX])\]\s+(.+)$/);
+        items.push(task ? { text: task[2], checked: task[1].toLowerCase() === "x" } : { text: item });
         index += 1;
       }
       index -= 1;
       blocks.push(
         <ul key={index} className="ml-5 list-disc space-y-1">
           {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
+            <li key={itemIndex} className={item.checked === undefined ? undefined : "list-none"}>
+              {item.checked !== undefined && (
+                <span className={`mr-2 inline-flex h-4 w-4 items-center justify-center rounded border text-[0.65rem] ${item.checked ? "border-cyan-400 bg-cyan-400/20 text-cyan-100" : "border-slate-600 text-transparent"}`}>
+                  ✓
+                </span>
+              )}
+              {renderInline(item.text)}
+            </li>
           ))}
         </ul>,
       );
@@ -182,6 +217,32 @@ function renderTextBlock(segment: string) {
             <li key={itemIndex}>{renderInline(item)}</li>
           ))}
         </ol>,
+      );
+      continue;
+    }
+
+    if (trimmed.includes("|") && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1])) {
+      const headers = trimmed.replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
+      index += 2;
+      const rows: string[][] = [];
+      while (index < lines.length && lines[index].includes("|")) {
+        rows.push(lines[index].trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim()));
+        index += 1;
+      }
+      index -= 1;
+      blocks.push(
+        <div key={index} className="overflow-x-auto rounded-xl border border-slate-700/70">
+          <table className="min-w-full divide-y divide-slate-700/70 text-left text-sm">
+            <thead className="bg-slate-900/80">
+              <tr>{headers.map((header, headerIndex) => <th key={headerIndex} className="px-3 py-2 font-semibold text-cyan-100">{renderInline(header)}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80">
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>{headers.map((_, cellIndex) => <td key={cellIndex} className="px-3 py-2 text-slate-200">{renderInline(row[cellIndex] ?? "")}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
       );
       continue;
     }
@@ -236,7 +297,7 @@ export default function ImageAnalyserPage() {
       id: "welcome",
       role: "assistant",
       content:
-        "Drop an image, paste from clipboard, or ask me anything. I can see and reason about what you send.",
+        "Drop an image, paste from clipboard, or ask anything. I keep the latest image in context for follow-up questions and answer with rich Markdown when it helps.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -343,15 +404,6 @@ export default function ImageAnalyserPage() {
   const pauseAutoScroll = useCallback(() => {
     shouldAutoScrollRef.current = false;
   }, []);
-
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior });
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    shouldAutoScrollRef.current = isNearBottom();
-  }, [isNearBottom]);
 
   useEffect(() => {
     if (shouldAutoScrollRef.current) {
@@ -577,6 +629,19 @@ export default function ImageAnalyserPage() {
 
 
         <div className="relative z-10 shrink-0 border-t border-cyan-500/15 bg-[#030712]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+          <div className="mx-auto mb-3 flex max-w-3xl gap-2 overflow-x-auto pb-1">
+            {PROMPT_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setInput(suggestion)}
+                disabled={loading}
+                className="shrink-0 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-400/15 disabled:opacity-40"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
           <div className="mx-auto flex max-w-3xl items-end gap-2 sm:gap-3">
             <input
               ref={fileRef}
@@ -608,11 +673,11 @@ export default function ImageAnalyserPage() {
             <div className="relative shrink-0">
               {plusMenuOpen && (
                 <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
-                  {COMING_SOON_FEATURES.map((feature) => (
+                  {AI_CAPABILITIES.map((feature) => (
                     <div key={feature} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-slate-400">
                       <span>{feature}</span>
                       <span className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">
-                        (coming soon)
+                        Ready
                       </span>
                     </div>
                   ))}
@@ -623,7 +688,7 @@ export default function ImageAnalyserPage() {
                 onClick={() => setPlusMenuOpen((open) => !open)}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
                 aria-expanded={plusMenuOpen}
-                aria-label="Open coming soon chat features"
+                aria-label="Open AI capability details"
               >
                 +
               </button>
