@@ -4,8 +4,6 @@ import { ENABLE_LANKSTER_GALLERY_GATE } from "@/lib/lankster-gallery-flags";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-const LANKSTER_GALLERY_PASSWORD = "lanky";
-
 function LockIcon() {
   return (
     <svg aria-hidden="true" fill="none" height="34" viewBox="0 0 24 24" width="34">
@@ -35,6 +33,7 @@ export function LanksterGalleryGate() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isDialogOpen) return;
@@ -57,27 +56,40 @@ export function LanksterGalleryGate() {
     setMessage("");
   }
 
-  function submitPassword(event: FormEvent<HTMLFormElement>) {
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage("");
+    setIsSubmitting(true);
 
-    if (password === LANKSTER_GALLERY_PASSWORD) {
-      setMessage("");
-      closePasswordDialog();
-      router.push("/lankster-gallery");
-      return;
+    try {
+      const response = await fetch("/api/lankster-gallery/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+
+      if (response.ok) {
+        closePasswordDialog();
+        router.push("/lankster-gallery");
+        return;
+      }
+
+      setMessage("Incorrect password — try again.");
+    } catch {
+      setMessage("Unable to check the password. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setMessage("Nope — try again.");
   }
 
   return (
     <>
       <aside className="fixed left-4 top-4 z-40 max-w-[160px] text-left sm:left-6 sm:top-6">
-        <h2 className="overflow-visible py-1 font-[family-name:var(--font-syne)] text-sm font-bold uppercase leading-[1.45] tracking-[0.18em] text-cyan-100/90">
-          lankster gallery
+        <h2 className="syne-text-safe font-[family-name:var(--font-syne)] text-sm font-bold uppercase leading-[1.45] tracking-[0.18em] text-cyan-100/90">
+          Lankster Gallery
         </h2>
         <button
-          aria-label="Unlock lankster gallery"
+          aria-label="Unlock Lankster Gallery"
           className="mt-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/35 bg-slate-950/75 text-cyan-300 shadow-[0_0_25px_rgba(34,211,238,0.12)] backdrop-blur-md transition-colors hover:border-cyan-300/70 hover:bg-cyan-950/70 hover:text-cyan-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
           onClick={openPasswordDialog}
           type="button"
@@ -100,9 +112,9 @@ export function LanksterGalleryGate() {
 
             <div className="pr-10">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/80">
-                locked window
+                Locked window
               </p>
-              <h2 className="mt-2 overflow-visible py-1 font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45]">
+              <h2 className="mt-2 syne-text-safe font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45]">
                 Lankster gallery
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -129,10 +141,11 @@ export function LanksterGalleryGate() {
               />
               {message && <p className="text-sm font-medium text-rose-300">{message}</p>}
               <button
-                className="w-full rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-4 py-3 font-semibold text-cyan-50 transition-colors hover:bg-cyan-400/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                className="w-full rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-4 py-3 font-semibold text-cyan-50 transition-colors hover:bg-cyan-400/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSubmitting}
                 type="submit"
               >
-                Unlock
+                {isSubmitting ? "Unlocking…" : "Unlock"}
               </button>
             </form>
           </div>
