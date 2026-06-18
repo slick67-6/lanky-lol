@@ -113,3 +113,34 @@ body > * {
     scroll-snap-align: none;
   }
 }
+
+* {
+  scrollbar-color: rgba(34, 211, 238, 0.45) rgba(15, 23, 42, 0.45);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(15, 23, 42, 0.8);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.82), rgba(8, 145, 178, 0.62));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0.95), rgba(34, 211, 238, 0.76));
+}
+
+.syne-text-safe {
+  display: block;
+  overflow: visible;
+  line-height: 1.62 !important;
+  padding-block: 0.22em 0.16em;
+}
