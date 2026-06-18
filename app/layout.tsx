@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Syne } from "next/font/google";
+import { RookAudioButton } from "@/components/rook-audio-button";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +37,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${syne.variable} h-full scroll-smooth`}
     >
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        {children}
+        <RookAudioButton />
+      </body>
     </html>
   );
 }
