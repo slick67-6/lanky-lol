@@ -3,9 +3,9 @@ import { ENABLE_LANKSTER_GALLERY_PAGE } from "@/lib/lankster-gallery-flags";
 import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
-  isValidLanksterGalleryAuthToken,
+  consumeLanksterGalleryAuthToken,
   LANKSTER_GALLERY_AUTH_COOKIE,
 } from "@/lib/lankster-gallery-auth";
 
@@ -13,10 +13,10 @@ export default async function LanksterGalleryPage() {
   if (!ENABLE_LANKSTER_GALLERY_PAGE) notFound();
 
   const cookieStore = await cookies();
-  const isAuthenticated = await isValidLanksterGalleryAuthToken(
+  const isAuthenticated = await consumeLanksterGalleryAuthToken(
     cookieStore.get(LANKSTER_GALLERY_AUTH_COOKIE)?.value,
   );
-  if (!isAuthenticated) notFound();
+  if (!isAuthenticated) redirect("/");
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-[#030712]">

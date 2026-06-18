@@ -115,7 +115,7 @@ export function LanksterGalleryGate() {
                 Locked window
               </p>
               <h2 className="mt-2 syne-text-safe font-[family-name:var(--font-syne)] text-2xl font-bold leading-[1.45]">
-                Lankster gallery
+                Lankster Gallery
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Enter the password to unlock the gallery.

@@ -141,6 +141,6 @@ body > * {
 .syne-text-safe {
   display: block;
   overflow: visible;
-  line-height: 1.62 !important;
-  padding-block: 0.22em 0.16em;
+  line-height: 1.85 !important;
+  padding-block: 0.28em 0.42em;
 }

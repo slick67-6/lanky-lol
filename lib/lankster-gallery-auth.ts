@@ -3,7 +3,17 @@ export const LANKSTER_GALLERY_AUTH_COOKIE = "lankster-gallery-auth";
 const LANKSTER_GALLERY_PASSWORD = "lanky";
 const LANKSTER_GALLERY_AUTH_SECRET =
   process.env.LANKSTER_GALLERY_AUTH_SECRET ?? "lanky-lol-lankster-gallery-server-only-secret-v1";
-const AUTH_MAX_AGE_SECONDS = 60 * 60 * 8;
+const AUTH_MAX_AGE_SECONDS = 60;
+
+type LanksterGalleryAuthGlobal = typeof globalThis & {
+  __lanksterGalleryIssuedTokens?: Map<string, number>;
+};
+
+function getIssuedTokens() {
+  const authGlobal = globalThis as LanksterGalleryAuthGlobal;
+  authGlobal.__lanksterGalleryIssuedTokens ??= new Map<string, number>();
+  return authGlobal.__lanksterGalleryIssuedTokens;
+}
 
 function bytesToBase64Url(bytes: Uint8Array) {
   let binary = "";
@@ -35,21 +45,11 @@ async function signPayload(payload: string) {
   return bytesToBase64Url(new Uint8Array(signature));
 }
 
-export function isCorrectLanksterGalleryPassword(password: unknown) {
-  return typeof password === "string" && password === LANKSTER_GALLERY_PASSWORD;
-}
-
-export async function createLanksterGalleryAuthToken(now = Date.now()) {
-  const expiresAt = now + AUTH_MAX_AGE_SECONDS * 1000;
-  const payload = bytesToBase64Url(new TextEncoder().encode(JSON.stringify({ expiresAt })));
-  return `${payload}.${await signPayload(payload)}`;
-}
-
-export async function isValidLanksterGalleryAuthToken(token: string | undefined) {
-  if (!token) return false;
+async function readSignedPayload(token: string | undefined) {
+  if (!token) return null;
 
   const [payload, signature] = token.split(".");
-  if (!payload || !signature) return false;
+  if (!payload || !signature) return null;
 
   try {
     const key = await importSigningKey();
@@ -59,14 +59,46 @@ export async function isValidLanksterGalleryAuthToken(token: string | undefined)
       base64UrlToBytes(signature),
       new TextEncoder().encode(payload),
     );
-    if (!isSignatureValid) return false;
+    if (!isSignatureValid) return null;
 
     const decoded = new TextDecoder().decode(base64UrlToBytes(payload));
-    const data = JSON.parse(decoded) as { expiresAt?: unknown };
-    return typeof data.expiresAt === "number" && data.expiresAt > Date.now();
+    const data = JSON.parse(decoded) as { expiresAt?: unknown; nonce?: unknown };
+    if (typeof data.expiresAt !== "number" || typeof data.nonce !== "string") return null;
+    if (data.expiresAt <= Date.now()) return null;
+
+    return data as { expiresAt: number; nonce: string };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function isCorrectLanksterGalleryPassword(password: unknown) {
+  return typeof password === "string" && password === LANKSTER_GALLERY_PASSWORD;
+}
+
+export async function createLanksterGalleryAuthToken(now = Date.now()) {
+  const expiresAt = now + AUTH_MAX_AGE_SECONDS * 1000;
+  const nonce = crypto.randomUUID();
+  const payload = bytesToBase64Url(new TextEncoder().encode(JSON.stringify({ expiresAt, nonce })));
+
+  getIssuedTokens().set(nonce, expiresAt);
+
+  return `${payload}.${await signPayload(payload)}`;
+}
+
+export async function isValidLanksterGalleryAuthToken(token: string | undefined) {
+  return (await readSignedPayload(token)) !== null;
+}
+
+export async function consumeLanksterGalleryAuthToken(token: string | undefined) {
+  const data = await readSignedPayload(token);
+  if (!data) return false;
+
+  const issuedTokens = getIssuedTokens();
+  const issuedExpiry = issuedTokens.get(data.nonce);
+  issuedTokens.delete(data.nonce);
+
+  return typeof issuedExpiry === "number" && issuedExpiry > Date.now();
 }
 
 export const lanksterGalleryAuthCookieOptions = {
