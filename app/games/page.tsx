@@ -3,6 +3,7 @@
 import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
 import { useState } from "react";
+import Link from "next/link";
 
 type GameType = {
   id: string;
@@ -12,6 +13,7 @@ type GameType = {
   players: string;
   difficulty: "Easy" | "Medium" | "Hard";
   icon: string;
+  path: string;
 };
 
 const GAMES: GameType[] = [
@@ -23,6 +25,7 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Easy",
     icon: "🐍",
+    path: "/games/snake",
   },
   {
     id: "memory",
@@ -32,15 +35,17 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Easy",
     icon: "🧠",
+    path: "/games/memory",
   },
   {
     id: "tic-tac-toe",
     title: "Tic Tac Toe",
     description: "Classic X and O game. Get three in a row to win!",
-    category: "online",
+    category: "offline",
     players: "2 Players",
     difficulty: "Easy",
     icon: "⭕",
+    path: "/games/tic-tac-toe",
   },
   {
     id: "breakout",
@@ -50,15 +55,17 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Medium",
     icon: "🧱",
+    path: "/games/breakout",
   },
   {
     id: "pong",
     title: "Pong Battle",
-    description: "Classic paddle game. Compete against a friend or AI!",
-    category: "online",
-    players: "2 Players",
+    description: "Classic paddle game. Compete against AI!",
+    category: "offline",
+    players: "1 Player",
     difficulty: "Medium",
     icon: "🏓",
+    path: "/games/pong",
   },
   {
     id: "whack-a-mole",
@@ -68,6 +75,7 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Medium",
     icon: "🔨",
+    path: "/games/whack-a-mole",
   },
   {
     id: "minesweeper",
@@ -77,6 +85,7 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Hard",
     icon: "💣",
+    path: "/games/minesweeper",
   },
   {
     id: "2048",
@@ -86,30 +95,32 @@ const GAMES: GameType[] = [
     players: "1 Player",
     difficulty: "Medium",
     icon: "🔢",
+    path: "/games/2048",
   },
   {
     id: "typing-race",
     title: "Typing Race",
-    description: "Race against others to type the fastest. Online multiplayer!",
-    category: "online",
-    players: "Multiplayer",
+    description: "Type as fast as you can! Test your typing speed and accuracy.",
+    category: "offline",
+    players: "1 Player",
     difficulty: "Medium",
     icon: "⌨️",
+    path: "/games/typing-race",
   },
   {
     id: "trivia",
     title: "Trivia Battle",
-    description: "Answer questions faster than your opponents. Test your knowledge!",
-    category: "online",
-    players: "Multiplayer",
+    description: "Answer questions to test your knowledge!",
+    category: "offline",
+    players: "1 Player",
     difficulty: "Hard",
     icon: "❓",
+    path: "/games/trivia",
   },
 ];
 
 export default function GamesPage() {
   const [filter, setFilter] = useState<"all" | "online" | "offline">("all");
-  const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
 
   const filteredGames = GAMES.filter((game) =>
     filter === "all" ? true : game.category === filter
@@ -165,9 +176,9 @@ export default function GamesPage() {
 
             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredGames.map((game) => (
-                <button
+                <Link
                   key={game.id}
-                  onClick={() => setSelectedGame(game)}
+                  href={game.path}
                   className="group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 text-left transition-all hover:border-cyan-400/40 hover:bg-slate-950/90 hover:shadow-[0_0_40px_rgba(34,211,238,0.15)]"
                 >
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-cyan-950/50 text-4xl shadow-inner">
@@ -204,7 +215,7 @@ export default function GamesPage() {
                       {game.difficulty}
                     </span>
                   </div>
-                </button>
+                </Link>
               ))}
             </div>
 
@@ -216,68 +227,6 @@ export default function GamesPage() {
           </div>
         </main>
       </div>
-
-      {selectedGame && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-slate-950/90 p-8 shadow-2xl shadow-cyan-950/30">
-            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-cyan-950/50 text-5xl mx-auto">
-              {selectedGame.icon}
-            </div>
-            <h2 className="mb-3 text-center font-[family-name:var(--font-syne)] text-2xl font-bold text-cyan-50">
-              {selectedGame.title}
-            </h2>
-            <p className="mb-6 text-center text-slate-400">{selectedGame.description}</p>
-            
-            <div className="mb-6 flex justify-center gap-3">
-              <span
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                  selectedGame.category === "online"
-                    ? "bg-green-950/50 text-green-300 border border-green-500/30"
-                    : "bg-blue-950/50 text-blue-300 border border-blue-500/30"
-                }`}
-              >
-                {selectedGame.category === "online" ? "🌐 Online" : "📱 Offline"}
-              </span>
-              <span className="rounded-full border border-slate-700 bg-slate-900/50 px-3 py-1.5 text-sm font-medium text-slate-300">
-                {selectedGame.players}
-              </span>
-              <span
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                  selectedGame.difficulty === "Easy"
-                    ? "border-emerald-500/30 bg-emerald-950/30 text-emerald-300"
-                    : selectedGame.difficulty === "Medium"
-                    ? "border-amber-500/30 bg-amber-950/30 text-amber-300"
-                    : "border-rose-500/30 bg-rose-950/30 text-rose-300"
-                }`}
-              >
-                {selectedGame.difficulty}
-              </span>
-            </div>
-
-            {selectedGame.category === "online" ? (
-              <div className="space-y-3">
-                <button className="w-full rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan-500">
-                  Find Match
-                </button>
-                <button className="w-full rounded-xl border border-cyan-500/30 px-6 py-3 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40">
-                  Create Private Room
-                </button>
-              </div>
-            ) : (
-              <button className="w-full rounded-xl bg-cyan-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan-500">
-                Start Game
-              </button>
-            )}
-
-            <button
-              onClick={() => setSelectedGame(null)}
-              className="mt-4 w-full rounded-xl border border-slate-700 px-6 py-3 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900/50 hover:text-slate-300"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
