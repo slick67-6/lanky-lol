@@ -43,8 +43,9 @@
   background: var(--confetti-color);
   opacity: 0;
   transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
-  animation: confetti-burst 1800ms cubic-bezier(0.16, 0.8, 0.32, 1) var(--confetti-delay) both;
+  animation: confetti-burst 2200ms cubic-bezier(0.22, 0.61, 0.36, 1) var(--confetti-delay) both;
   will-change: transform, opacity;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
 .confettiBurstRight .confettiPiece {
@@ -57,33 +58,33 @@
     opacity: 0;
     transform: translate3d(0, 0, 0) rotate(0deg) scale(0.65);
   }
-  10% {
+  8% {
     opacity: 1;
   }
-  62% {
+  55% {
     opacity: 1;
     transform: translate3d(var(--confetti-end-x), var(--confetti-end-y), 0)
-      rotate(calc(var(--confetti-rotate) * 0.72)) scale(1);
+      rotate(calc(var(--confetti-rotate) * 0.68)) scale(1);
   }
   100% {
     opacity: 0;
     transform: translate3d(
         calc(var(--confetti-end-x) + var(--confetti-drift-x)),
-        calc(var(--confetti-end-y) + 34px),
+        calc(var(--confetti-end-y) + 40px),
         0
       )
-      rotate(var(--confetti-rotate)) scale(0.85);
+      rotate(var(--confetti-rotate)) scale(0.8);
   }
 }
 
 @keyframes confetti-emoji-pop {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.8);
+    transform: translateY(12px) scale(0.75);
   }
-  55% {
+  50% {
     opacity: 1;
-    transform: translateY(0) scale(1.08);
+    transform: translateY(0) scale(1.1);
   }
   100% {
     opacity: 1;
@@ -98,11 +99,11 @@
 @keyframes confetti-emoji-pop-right {
   0% {
     opacity: 0;
-    transform: translateY(10px) scaleX(-1) scale(0.8);
+    transform: translateY(12px) scaleX(-1) scale(0.75);
   }
-  55% {
+  50% {
     opacity: 1;
-    transform: translateY(0) scaleX(-1) scale(1.08);
+    transform: translateY(0) scaleX(-1) scale(1.1);
   }
   100% {
     opacity: 1;

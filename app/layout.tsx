@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Syne } from "next/font/google";
+import { Geist, Syne, Inter } from "next/font/google";
 import { RookAudioButton } from "@/components/rook-audio-button";
 import "./globals.css";
 
@@ -12,6 +12,12 @@ const syne = Syne({
   variable: "--font-syne",
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -35,9 +41,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${syne.variable} h-full scroll-smooth`}
+      className={`${geistSans.variable} ${syne.variable} ${inter.variable} h-full scroll-smooth`}
     >
-      <body className="min-h-dvh antialiased">
+      <body className="min-h-dvh antialiased font-[family-name:var(--font-inter)]">
         {children}
         <RookAudioButton />
       </body>

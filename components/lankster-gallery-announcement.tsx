@@ -7,19 +7,19 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import styles from "./lankster-gallery-announcement.module.css";
 
 const POPUP_STORAGE_KEY = "lankster-gallery-announcement-seen";
-const AUTO_CLOSE_DELAY_MS = 7000;
+const AUTO_CLOSE_DELAY_MS = 8000;
 
-const CONFETTI_COLORS = ["#22d3ee", "#f472b6", "#facc15", "#a78bfa", "#34d399"];
+const CONFETTI_COLORS = ["#22d3ee", "#f472b6", "#facc15", "#a78bfa", "#34d399", "#fb923c", "#e879f9"];
 
 function ConfettiBurst({ side }: { side: "left" | "right" }) {
   const pieces = useMemo(
     () =>
-      Array.from({ length: 22 }, (_, index) => {
+      Array.from({ length: 30 }, (_, index) => {
         const direction = side === "left" ? 1 : -1;
-        const column = index % 6;
-        const row = Math.floor(index / 6);
-        const endX = direction * (38 + column * 19 + row * 8);
-        const endY = -(72 + row * 30 + (index % 3) * 10);
+        const column = index % 7;
+        const row = Math.floor(index / 7);
+        const endX = direction * (42 + column * 22 + row * 10);
+        const endY = -(78 + row * 32 + (index % 4) * 12);
 
         return (
           <span
@@ -29,13 +29,13 @@ function ConfettiBurst({ side }: { side: "left" | "right" }) {
             style={
               {
                 "--confetti-color": CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-                "--confetti-delay": `${index * 26}ms`,
-                "--confetti-drift-x": `${direction * (8 + (index % 5) * 5)}px`,
+                "--confetti-delay": `${index * 20}ms`,
+                "--confetti-drift-x": `${direction * (10 + (index % 6) * 6)}px`,
                 "--confetti-end-x": `${endX}px`,
                 "--confetti-end-y": `${endY}px`,
-                "--confetti-height": `${8 + (index % 3) * 3}px`,
-                "--confetti-rotate": `${direction * (220 + index * 24)}deg`,
-                "--confetti-width": `${5 + (index % 2) * 4}px`,
+                "--confetti-height": `${6 + (index % 4) * 4}px`,
+                "--confetti-rotate": `${direction * (200 + index * 28)}deg`,
+                "--confetti-width": `${4 + (index % 3) * 5}px`,
               } as CSSProperties
             }
           />
@@ -85,14 +85,14 @@ export function LanksterGalleryAnnouncement() {
   if (!ENABLE_LANKSTER_GALLERY_POPUP || !isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/75 px-3 py-5 backdrop-blur-sm sm:px-4 sm:py-8">
-      <div className="relative h-[min(92dvh,44rem)] w-full max-w-[min(92vw,34rem)] overflow-hidden rounded-3xl border border-cyan-400/30 bg-slate-950/95 text-center shadow-[0_0_70px_rgba(34,211,238,0.22)]">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 px-3 py-5 backdrop-blur-sm sm:px-4 sm:py-8">
+      <div className="relative h-[min(92dvh,46rem)] w-full max-w-[min(92vw,36rem)] overflow-hidden rounded-3xl border border-cyan-400/40 bg-slate-950/95 text-center shadow-[0_0_80px_rgba(34,211,238,0.28)] animate-in fade-in zoom-in duration-500">
         <ConfettiBurst side="left" />
         <ConfettiBurst side="right" />
 
         <button
           aria-label="Close announcement"
-          className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-300/50 bg-slate-950/90 text-2xl font-semibold leading-none text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,0.25)] transition-colors hover:bg-cyan-950/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 sm:right-4 sm:top-4"
+          className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-300/60 bg-slate-950/90 text-2xl font-semibold leading-none text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.35)] transition-all duration-200 hover:bg-cyan-950/90 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 sm:right-4 sm:top-4"
           onClick={closePopup}
           type="button"
         >
@@ -105,12 +105,15 @@ export function LanksterGalleryAnnouncement() {
           fill
           placeholder="blur"
           priority
-          sizes="(max-width: 640px) 92vw, 34rem"
+          sizes="(max-width: 640px) 92vw, 36rem"
           src={announcementPhoto}
         />
-        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/20 bg-slate-950/85 px-5 pb-5 pt-4 backdrop-blur sm:px-7 sm:pb-6 sm:pt-5">
+        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-cyan-400/30 bg-slate-950/90 px-5 pb-5 pt-4 backdrop-blur sm:px-7 sm:pb-6 sm:pt-5">
           <p className="inline-block overflow-visible px-1 pb-2 pt-1 font-[family-name:var(--font-syne)] text-xl font-bold leading-[1.6] text-cyan-50 sm:text-2xl">
             The Lankster Gallery is now out!
+          </p>
+          <p className="mt-2 text-sm text-cyan-200/80 sm:text-base">
+            Explore the collection of lanky creations
           </p>
         </div>
       </div>
