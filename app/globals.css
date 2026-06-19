@@ -13,7 +13,7 @@
   --color-background: var(--bg-deep);
   --color-foreground: var(--text-primary);
   --font-display: var(--font-syne);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
 }
 
 html {
@@ -29,10 +29,12 @@ body {
   margin: 0;
   background: var(--bg-deep);
   color: var(--text-primary);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
   overflow-x: hidden;
   overscroll-behavior-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 button,
 input,

@@ -54,6 +54,20 @@ function DocumentIcon() {
   );
 }
 
+function GamesIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 12h4m-2-2v4m8-4h4m-2-2v4M3 12a9 9 0 1118 0 9 9 0 01-18 0z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function Home() {
   return (
     <div className="relative min-h-dvh w-full bg-[#030712] text-slate-100">
@@ -105,11 +119,11 @@ export default function Home() {
           </FadeIn>
           <FadeIn delay={80}>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500 sm:text-base">
-              Two analysers. One working. One in development.
+              Three tools. Image analyser, document analyser, and games.
             </p>
           </FadeIn>
 
-          <div className="mt-14 flex w-full max-w-4xl flex-col items-center justify-center gap-8 md:flex-row md:gap-10">
+          <div className="mt-14 flex w-full max-w-5xl flex-col items-center justify-center gap-6 md:flex-row md:gap-8 lg:gap-10">
             <FadeIn delay={120} className="flex w-full justify-center">
               <ToolCard
                 href="/analyser/image"
@@ -126,6 +140,15 @@ export default function Home() {
                 description="PDFs, docs, and walls of text — a dedicated UI is on the way. Peek inside for the roadmap."
                 icon={<DocumentIcon />}
                 badge="Soon"
+              />
+            </FadeIn>
+            <FadeIn delay={280} className="flex w-full justify-center">
+              <ToolCard
+                href="/games"
+                title="Games"
+                description="A collection of fun browser games — online multiplayer and single-player options coming soon."
+                icon={<GamesIcon />}
+                badge="Coming Soon"
               />
             </FadeIn>
           </div>
