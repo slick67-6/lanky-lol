@@ -1,6 +1,7 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
 import { SiteHeader } from "@/components/site-header";
 import { useEffect, useRef, useState } from "react";
 
@@ -14,7 +15,7 @@ export default function BreakoutGamePage() {
   const paddleRef = useRef({ x: 0, width: 80, height: 10 });
   const ballRef = useRef({ x: 0, y: 0, dx: 4, dy: -4, radius: 8 });
   const bricksRef = useRef<{ x: number; y: number; status: boolean }[]>([]);
-  const gameLoopRef = useRef<number>();
+  const gameLoopRef = useRef<number | null>(null);
 
   const CANVAS_WIDTH = 480;
   const CANVAS_HEIGHT = 400;
@@ -235,6 +236,7 @@ export default function BreakoutGamePage() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="Breakout" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">

@@ -12,6 +12,7 @@ type Message = {
 
 type TabType = "notes" | "answers" | "quiz" | "chat";
 type ViewType = "landing" | "analysis";
+type GeneratedAnalysis = { notes: string; answers: string; quiz: string };
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -56,6 +57,8 @@ export default function DocumentAnalyserPage() {
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Analyzing document...");
+  const [loadingDetail, setLoadingDetail] = useState("Preparing the extraction pipeline.");
+  const [generatedAnalysis, setGeneratedAnalysis] = useState<GeneratedAnalysis | null>(null);
   
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -161,6 +164,58 @@ export default function DocumentAnalyserPage() {
     throw new Error("Unsupported file type");
   };
 
+  const readStreamText = async (body: ReadableStream<Uint8Array>) => {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let output = "";
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        output += decoder.decode(value, { stream: true });
+      }
+      output += decoder.decode();
+      return output.trim();
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  const splitGeneratedAnalysis = (raw: string): GeneratedAnalysis => {
+    const notes = raw.match(/NOTES:([\s\S]*?)(?:ANSWERS:|QUIZ:|$)/i)?.[1]?.trim();
+    const answers = raw.match(/ANSWERS:([\s\S]*?)(?:QUIZ:|$)/i)?.[1]?.trim();
+    const quiz = raw.match(/QUIZ:([\s\S]*)/i)?.[1]?.trim();
+
+    return {
+      notes: notes || raw || "No notes were generated, but the extracted document preview is available below.",
+      answers: answers || "Open the Chat tab to ask targeted questions about this document.",
+      quiz: quiz || "Quiz generation was unavailable. Ask the chat to create a custom quiz from the document.",
+    };
+  };
+
+  const generateDocumentAnalysis = async (content: string, fileName: string) => {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "user",
+            content: `Analyse this uploaded document named "${fileName}". Return exactly three labelled sections: NOTES:, ANSWERS:, QUIZ:. NOTES should be concise revision notes with headings. ANSWERS should include likely useful Q&A based only on the document. QUIZ should contain 6 questions with answers.`,
+            documentContext: content,
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok || !res.body) {
+      throw new Error("The AI analysis service could not generate notes right now.");
+    }
+
+    return splitGeneratedAnalysis(await readStreamText(res.body));
+  };
+
   const processDocument = async () => {
     if (!pendingFile) return;
     if (loading) return;
@@ -168,32 +223,41 @@ export default function DocumentAnalyserPage() {
     setShowLoadingScreen(true);
     setLoadingProgress(0);
     setLoadingMessage("Reading document...");
+    setLoadingDetail("Opening the file and validating the upload.");
     setError(null);
 
     try {
       setLoadingProgress(10);
-      setLoadingMessage("Extracting content from document...");
+      setLoadingMessage("Extracting real document content...");
+      setLoadingDetail("Reading text, slide XML, speaker notes, and embedded media metadata where available.");
 
       const content = await extractDocumentContent(pendingFile);
       setDocumentContent(content);
       setDocumentName(pendingFile.name);
 
-      setLoadingProgress(40);
-      setLoadingMessage("Analyzing document structure...");
+      setLoadingProgress(42);
+      setLoadingMessage("Mapping document structure...");
+      setLoadingDetail("Chunking extracted content so it can be fed into Lanky AI with the chat context.");
 
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setLoadingProgress(60);
-      setLoadingMessage("Generating key notes...");
+      setLoadingProgress(62);
+      setLoadingMessage("Generating notes, answers, and quiz...");
+      setLoadingDetail("The AI is now using the extracted document text and metadata, not just the filename.");
 
-      await new Promise(resolve => setTimeout(resolve, 600));
-      setLoadingProgress(80);
-      setLoadingMessage("Preparing quiz questions...");
+      try {
+        const analysis = await generateDocumentAnalysis(content, pendingFile.name);
+        setGeneratedAnalysis(analysis);
+      } catch (analysisError) {
+        setGeneratedAnalysis({
+          notes: `AI generation could not complete automatically, but extracted text is ready for chat.\n\n${content.slice(0, 1800)}`,
+          answers: analysisError instanceof Error ? analysisError.message : "Ask the Chat tab for answers from this document.",
+          quiz: "Ask the Chat tab to generate a quiz from the extracted document content.",
+        });
+      }
 
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setLoadingProgress(95);
-      setLoadingMessage("Finalizing analysis...");
-
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setLoadingProgress(92);
+      setLoadingMessage("Finalising your workspace...");
+      setLoadingDetail("Saving the extracted context into the analyser tabs and chat.");
+      await new Promise(resolve => setTimeout(resolve, 250));
       setLoadingProgress(100);
 
       setShowLoadingScreen(false);
@@ -224,6 +288,7 @@ export default function DocumentAnalyserPage() {
     setDocumentContent(null);
     setDocumentName(null);
     setMessages([]);
+    setGeneratedAnalysis(null);
     setActiveTab("notes");
   };
 
@@ -346,7 +411,8 @@ export default function DocumentAnalyserPage() {
           <SiteHeader title="AI Document Analyser" />
 
           <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-            <div className="mx-auto w-full max-w-2xl text-center">
+            <div className="mx-auto grid w-full max-w-5xl items-center gap-6 lg:grid-cols-[1fr_1.2fr]">
+              <div className="text-center lg:text-left">
               <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
                 AI Document Analyser
               </h1>
@@ -355,6 +421,9 @@ export default function DocumentAnalyserPage() {
                 Extract key insights, get answers, and test your knowledge with AI-generated quizzes.
               </p>
 
+              </div>
+
+              <div className="rounded-[2rem] border border-cyan-500/20 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
               <div className="mb-8 rounded-2xl border-2 border-dashed border-cyan-500/30 bg-slate-950/50 p-8 transition-colors hover:border-cyan-400/50">
                 <input
                   ref={fileRef}
@@ -426,6 +495,7 @@ export default function DocumentAnalyserPage() {
               >
                 Analyse Document
               </button>
+              </div>
             </div>
           </main>
         </div>
@@ -444,6 +514,7 @@ export default function DocumentAnalyserPage() {
                 ></div>
               </div>
               <p className="text-sm text-slate-400">{loadingProgress}% complete</p>
+              <p className="mt-3 text-xs leading-relaxed text-slate-500">{loadingDetail}</p>
               <button
                 onClick={closeLoadingScreen}
                 className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40"
@@ -521,18 +592,14 @@ export default function DocumentAnalyserPage() {
             {activeTab === "answers" && (
               <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
                 <h2 className="mb-4 text-xl font-semibold text-cyan-100">Answers</h2>
-                <p className="text-slate-300">
-                  Ask questions about the document in the Chat tab, and answers will appear here.
-                </p>
+                <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-300">{generatedAnalysis?.answers}</pre>
               </div>
             )}
 
             {activeTab === "quiz" && (
               <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
                 <h2 className="mb-4 text-xl font-semibold text-cyan-100">Quiz</h2>
-                <p className="text-slate-300">
-                  Quiz questions based on the document content will appear here after analysis.
-                </p>
+                <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-300">{generatedAnalysis?.quiz}</pre>
               </div>
             )}
 
@@ -633,6 +700,7 @@ export default function DocumentAnalyserPage() {
               ></div>
             </div>
             <p className="text-sm text-slate-400">{loadingProgress}% complete</p>
+              <p className="mt-3 text-xs leading-relaxed text-slate-500">{loadingDetail}</p>
             <button
               onClick={closeLoadingScreen}
               className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40"

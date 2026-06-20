@@ -1,6 +1,7 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
 import { SiteHeader } from "@/components/site-header";
 import { useEffect, useRef, useState } from "react";
 
@@ -14,7 +15,7 @@ export default function SnakeGamePage() {
   const snakeRef = useRef<{ x: number; y: number }[]>([]);
   const foodRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const directionRef = useRef({ x: 1, y: 0 });
-  const gameLoopRef = useRef<number>();
+  const gameLoopRef = useRef<number | null>(null);
 
   const GRID_SIZE = 20;
   const CANVAS_SIZE = 400;
@@ -221,6 +222,7 @@ export default function SnakeGamePage() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="Snake Classic" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">

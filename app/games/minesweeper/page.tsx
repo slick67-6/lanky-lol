@@ -1,8 +1,9 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
 import { SiteHeader } from "@/components/site-header";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function MinesweeperGamePage() {
   const GRID_SIZE = 10;
@@ -141,6 +142,7 @@ export default function MinesweeperGamePage() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="Minesweeper" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">

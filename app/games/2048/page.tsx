@@ -1,6 +1,7 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
 import { SiteHeader } from "@/components/site-header";
 import { useState, useEffect } from "react";
 
@@ -42,9 +43,9 @@ export default function Game2048Page() {
   };
 
   const slideRow = (row: number[]) => {
-    let arr = row.filter((val) => val !== 0);
-    let missing = GRID_SIZE - arr.length;
-    let zeros = Array(missing).fill(0);
+    const arr = row.filter((val) => val !== 0);
+    const missing = GRID_SIZE - arr.length;
+    const zeros = Array(missing).fill(0);
     return [...arr, ...zeros];
   };
 
@@ -60,7 +61,7 @@ export default function Game2048Page() {
   };
 
   const moveLeft = (currentGrid: number[][]) => {
-    let newGrid = currentGrid.map((row) => {
+    const newGrid = currentGrid.map((row) => {
       let newRow = slideRow(row);
       newRow = combineRow(newRow);
       return slideRow(newRow);
@@ -69,7 +70,7 @@ export default function Game2048Page() {
   };
 
   const moveRight = (currentGrid: number[][]) => {
-    let newGrid = currentGrid.map((row) => {
+    const newGrid = currentGrid.map((row) => {
       let newRow = slideRow(row.reverse());
       newRow = combineRow(newRow);
       return slideRow(newRow).reverse();
@@ -78,9 +79,9 @@ export default function Game2048Page() {
   };
 
   const moveUp = (currentGrid: number[][]) => {
-    let newGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    const newGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
     for (let i = 0; i < GRID_SIZE; i++) {
-      let col = currentGrid.map((row) => row[i]);
+      const col = currentGrid.map((row) => row[i]);
       let newCol = slideRow(col);
       newCol = combineRow(newCol);
       newCol = slideRow(newCol);
@@ -92,9 +93,9 @@ export default function Game2048Page() {
   };
 
   const moveDown = (currentGrid: number[][]) => {
-    let newGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    const newGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
     for (let i = 0; i < GRID_SIZE; i++) {
-      let col = currentGrid.map((row) => row[i]).reverse();
+      const col = currentGrid.map((row) => row[i]).reverse();
       let newCol = slideRow(col);
       newCol = combineRow(newCol);
       newCol = slideRow(newCol).reverse();
@@ -195,6 +196,7 @@ export default function Game2048Page() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="2048" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">
