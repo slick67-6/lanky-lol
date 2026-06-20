@@ -1,6 +1,7 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
 import { SiteHeader } from "@/components/site-header";
 import { useState, useEffect } from "react";
 
@@ -195,6 +196,7 @@ export default function Game2048Page() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="2048" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">

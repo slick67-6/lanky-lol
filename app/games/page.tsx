@@ -40,9 +40,9 @@ const GAMES: GameType[] = [
   {
     id: "tic-tac-toe",
     title: "Tic Tac Toe",
-    description: "Classic X and O game. Get three in a row to win!",
-    category: "offline",
-    players: "2 Players",
+    description: "Play local, find an online opponent, or invite a friend with a private code.",
+    category: "online",
+    players: "1-2 Players",
     difficulty: "Easy",
     icon: "⭕",
     path: "/games/tic-tac-toe",
@@ -60,9 +60,9 @@ const GAMES: GameType[] = [
   {
     id: "pong",
     title: "Pong Battle",
-    description: "Classic paddle game. Compete against AI!",
-    category: "offline",
-    players: "1 Player",
+    description: "Classic paddle game with AI practice, quick matchmaking, and private room codes.",
+    category: "online",
+    players: "1-2 Players",
     difficulty: "Medium",
     icon: "🏓",
     path: "/games/pong",
@@ -110,9 +110,9 @@ const GAMES: GameType[] = [
   {
     id: "trivia",
     title: "Trivia Battle",
-    description: "Answer questions to test your knowledge!",
-    category: "offline",
-    players: "1 Player",
+    description: "Answer questions solo or queue into an online trivia lobby with a room code.",
+    category: "online",
+    players: "1-4 Players",
     difficulty: "Hard",
     icon: "❓",
     path: "/games/trivia",
@@ -137,8 +137,8 @@ export default function GamesPage() {
             <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
               Game Collection
             </h1>
-            <p className="mb-8 text-slate-400">
-              Choose from a variety of fun browser games. Some support online multiplayer!
+            <p className="mb-8 max-w-3xl text-slate-400">
+              Choose from polished arcade, puzzle, and quiz games. Online-ready games now include matchmaking lobby controls and private room codes for sharing with friends.
             </p>
 
             <div className="mb-8 flex flex-wrap gap-3">

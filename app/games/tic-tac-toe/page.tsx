@@ -1,6 +1,8 @@
 "use client";
 
 import { ParticlesBackground } from "@/components/particles-background";
+import { GamesBackLink } from "@/components/games-back-link";
+import { OnlineMatchmakingPanel } from "@/components/online-matchmaking-panel";
 import { SiteHeader } from "@/components/site-header";
 import { useState } from "react";
 
@@ -63,6 +65,7 @@ export default function TicTacToeGamePage() {
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="Tic Tac Toe" />
+        <GamesBackLink />
 
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <div className="mx-auto w-full max-w-lg text-center">
@@ -72,6 +75,8 @@ export default function TicTacToeGamePage() {
             <p className="mb-8 text-slate-400">
               Classic X and O game. Get three in a row to win!
             </p>
+
+            <OnlineMatchmakingPanel gameName="Tic Tac Toe" />
 
             <div className="mb-6 flex items-center justify-center gap-8">
               <div className="text-center">

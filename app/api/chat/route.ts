@@ -6,6 +6,7 @@ type ClientMessage = {
   role: "user" | "assistant";
   content: string;
   image?: string;
+  documentContext?: string;
 };
 
 type ImagePayload = {
@@ -150,6 +151,7 @@ function compactMessagesForModel(messages: ClientMessage[]): ClientMessage[] {
     role: message.role,
     content: message.content,
     image: index === latestImageIndex ? message.image : undefined,
+    documentContext: message.documentContext,
   }));
 
   if (latestImageIndex >= 0) {
@@ -183,14 +185,19 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
       );
     }
 
+    const documentContext = message.documentContext?.trim();
+    const content = documentContext
+      ? `${message.content}\n\n[Attached document context for this request]\n${documentContext.slice(0, 24000)}`
+      : message.content;
+
     if (!parsedImage) {
-      return { role: "user", content: message.content };
+      return { role: "user", content };
     }
 
     return {
       role: "user",
       content: [
-        { type: "text", text: message.content },
+        { type: "text", text: content },
         {
           type: "image_url",
           image_url: {
