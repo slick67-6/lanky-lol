@@ -14,7 +14,7 @@ export default function BreakoutGamePage() {
   const paddleRef = useRef({ x: 0, width: 80, height: 10 });
   const ballRef = useRef({ x: 0, y: 0, dx: 4, dy: -4, radius: 8 });
   const bricksRef = useRef<{ x: number; y: number; status: boolean }[]>([]);
-  const gameLoopRef = useRef<number>();
+  const gameLoopRef = useRef<number | null>(null);
 
   const CANVAS_WIDTH = 480;
   const CANVAS_HEIGHT = 400;
