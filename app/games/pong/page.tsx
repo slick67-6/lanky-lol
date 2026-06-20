@@ -13,7 +13,7 @@ export default function PongGamePage() {
   const playerPaddleRef = useRef({ x: 0, y: 0, width: 10, height: 80 });
   const aiPaddleRef = useRef({ x: 0, y: 0, width: 10, height: 80 });
   const ballRef = useRef({ x: 0, y: 0, dx: 5, dy: 5, radius: 8 });
-  const gameLoopRef = useRef<number>();
+  const gameLoopRef = useRef<number | null>(null);
 
   const CANVAS_WIDTH = 600;
   const CANVAS_HEIGHT = 400;

@@ -14,7 +14,7 @@ export default function SnakeGamePage() {
   const snakeRef = useRef<{ x: number; y: number }[]>([]);
   const foodRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const directionRef = useRef({ x: 1, y: 0 });
-  const gameLoopRef = useRef<number>();
+  const gameLoopRef = useRef<number | null>(null);
 
   const GRID_SIZE = 20;
   const CANVAS_SIZE = 400;
