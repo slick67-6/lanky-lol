@@ -97,17 +97,24 @@ export default function WhackAMoleGamePage() {
               ))}
             </div>
 
-            {!isPlaying && timeLeft === 30 && (
+            {!isPlaying && (
               <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">Ready to Play!</p>
-                <p className="text-slate-400">Click Start to begin</p>
-              </div>
-            )}
-
-            {!isPlaying && timeLeft === 0 && (
-              <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">Time's Up!</p>
-                <p className="text-slate-400">Final Score: {score}</p>
+                {timeLeft === 30 ? (
+                  <>
+                    <p className="text-lg font-semibold text-cyan-400">Ready to Play!</p>
+                    <p className="text-slate-400">Click Start to begin</p>
+                  </>
+                ) : timeLeft === 0 ? (
+                  <>
+                    <p className="text-lg font-semibold text-cyan-400">Time's Up!</p>
+                    <p className="text-slate-400">Final Score: {score}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-semibold text-cyan-400">Game Stopped</p>
+                    <p className="text-slate-400">Score: {score} | Time left: {timeLeft}s</p>
+                  </>
+                )}
               </div>
             )}
 
@@ -117,7 +124,7 @@ export default function WhackAMoleGamePage() {
                   onClick={startGame}
                   className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500"
                 >
-                  {timeLeft === 30 ? "Start Game" : "Play Again"}
+                  {timeLeft === 30 ? "Start Game" : timeLeft === 0 ? "Play Again" : "Resume"}
                 </button>
               ) : (
                 <button

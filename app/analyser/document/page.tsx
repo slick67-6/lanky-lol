@@ -184,9 +184,12 @@ export default function DocumentAnalyserPage() {
   };
 
   const splitGeneratedAnalysis = (raw: string): GeneratedAnalysis => {
-    const notes = raw.match(/NOTES:([\s\S]*?)(?:ANSWERS:|QUIZ:|$)/i)?.[1]?.trim();
-    const answers = raw.match(/ANSWERS:([\s\S]*?)(?:QUIZ:|$)/i)?.[1]?.trim();
-    const quiz = raw.match(/QUIZ:([\s\S]*)/i)?.[1]?.trim();
+    const notesMatch = raw.match(/\*{0,2}NOTES\*{0,2}:?\s*([\s\S]*?)(?:\*{0,2}ANSWERS\*{0,2}:?\s*|\*{0,2}QUIZ\*{0,2}:?\s*|$)/i);
+    const notes = notesMatch?.[1]?.trim();
+    const answersMatch = raw.match(/\*{0,2}ANSWERS\*{0,2}:?\s*([\s\S]*?)(?:\*{0,2}QUIZ\*{0,2}:?\s*|$)/i);
+    const answers = answersMatch?.[1]?.trim();
+    const quizMatch = raw.match(/\*{0,2}QUIZ\*{0,2}:?\s*([\s\S]*)/i);
+    const quiz = quizMatch?.[1]?.trim();
 
     return {
       notes: notes || raw || "No notes were generated, but the extracted document preview is available below.",

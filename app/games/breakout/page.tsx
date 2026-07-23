@@ -50,9 +50,11 @@ export default function BreakoutGamePage() {
       if (!isPlaying || gameOver) return;
 
       if (e.key === "ArrowLeft" || e.key === "a") {
+        e.preventDefault();
         paddleRef.current.x = Math.max(0, paddleRef.current.x - 20);
       }
       if (e.key === "ArrowRight" || e.key === "d") {
+        e.preventDefault();
         paddleRef.current.x = Math.min(
           CANVAS_WIDTH - paddleRef.current.width,
           paddleRef.current.x + 20
@@ -153,13 +155,33 @@ export default function BreakoutGamePage() {
     // Brick collision
     bricksRef.current.forEach((brick) => {
       if (brick.status) {
+        const ballLeft = ballRef.current.x - ballRef.current.radius;
+        const ballRight = ballRef.current.x + ballRef.current.radius;
+        const ballTop = ballRef.current.y - ballRef.current.radius;
+        const ballBottom = ballRef.current.y + ballRef.current.radius;
+        const brickLeft = brick.x;
+        const brickRight = brick.x + BRICK_WIDTH;
+        const brickTop = brick.y;
+        const brickBottom = brick.y + BRICK_HEIGHT;
+
         if (
-          ballRef.current.x > brick.x &&
-          ballRef.current.x < brick.x + BRICK_WIDTH &&
-          ballRef.current.y > brick.y &&
-          ballRef.current.y < brick.y + BRICK_HEIGHT
+          ballRight > brickLeft &&
+          ballLeft < brickRight &&
+          ballBottom > brickTop &&
+          ballTop < brickBottom
         ) {
-          ballRef.current.dy = -ballRef.current.dy;
+          const overlapLeft = ballRight - brickLeft;
+          const overlapRight = brickRight - ballLeft;
+          const overlapTop = ballBottom - brickTop;
+          const overlapBottom = brickBottom - ballTop;
+          const minOverlapX = Math.min(overlapLeft, overlapRight);
+          const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+          if (minOverlapX < minOverlapY) {
+            ballRef.current.dx = -ballRef.current.dx;
+          } else {
+            ballRef.current.dy = -ballRef.current.dy;
+          }
           brick.status = false;
           setScore((prev) => prev + 10);
         }

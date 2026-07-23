@@ -2,7 +2,6 @@
 
 import { ParticlesBackground } from "@/components/particles-background";
 import { GamesBackLink } from "@/components/games-back-link";
-import { OnlineMatchmakingPanel } from "@/components/online-matchmaking-panel";
 import { SiteHeader } from "@/components/site-header";
 import { useEffect, useRef, useState } from "react";
 
@@ -37,9 +36,11 @@ export default function PongGamePage() {
       if (!isPlaying) return;
 
       if (e.key === "ArrowUp" || e.key === "w") {
+        e.preventDefault();
         playerPaddleRef.current.y = Math.max(0, playerPaddleRef.current.y - 20);
       }
       if (e.key === "ArrowDown" || e.key === "s") {
+        e.preventDefault();
         playerPaddleRef.current.y = Math.min(
           CANVAS_HEIGHT - playerPaddleRef.current.height,
           playerPaddleRef.current.y + 20
@@ -108,21 +109,28 @@ export default function PongGamePage() {
       ballRef.current.dy = -ballRef.current.dy;
     }
 
-    // Paddle collision
+    // Player paddle collision
     if (
+      ballRef.current.dx < 0 &&
       ballRef.current.x - ballRef.current.radius < playerPaddleRef.current.x + playerPaddleRef.current.width &&
-      ballRef.current.y > playerPaddleRef.current.y &&
-      ballRef.current.y < playerPaddleRef.current.y + playerPaddleRef.current.height
+      ballRef.current.x > playerPaddleRef.current.x &&
+      ballRef.current.y + ballRef.current.radius > playerPaddleRef.current.y &&
+      ballRef.current.y - ballRef.current.radius < playerPaddleRef.current.y + playerPaddleRef.current.height
     ) {
       ballRef.current.dx = Math.abs(ballRef.current.dx);
+      ballRef.current.x = playerPaddleRef.current.x + playerPaddleRef.current.width + ballRef.current.radius;
     }
 
+    // AI paddle collision
     if (
+      ballRef.current.dx > 0 &&
       ballRef.current.x + ballRef.current.radius > aiPaddleRef.current.x &&
-      ballRef.current.y > aiPaddleRef.current.y &&
-      ballRef.current.y < aiPaddleRef.current.y + aiPaddleRef.current.height
+      ballRef.current.x < aiPaddleRef.current.x + aiPaddleRef.current.width &&
+      ballRef.current.y + ballRef.current.radius > aiPaddleRef.current.y &&
+      ballRef.current.y - ballRef.current.radius < aiPaddleRef.current.y + aiPaddleRef.current.height
     ) {
       ballRef.current.dx = -Math.abs(ballRef.current.dx);
+      ballRef.current.x = aiPaddleRef.current.x - ballRef.current.radius;
     }
 
     // AI paddle movement
@@ -217,8 +225,6 @@ export default function PongGamePage() {
             <p className="mb-8 text-slate-400">
               Classic paddle game. Compete against AI!
             </p>
-
-            <OnlineMatchmakingPanel gameName="Pong" />
 
             <div className="mb-6 flex items-center justify-center gap-8">
               <div className="text-center">

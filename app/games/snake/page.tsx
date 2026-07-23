@@ -46,15 +46,19 @@ export default function SnakeGamePage() {
 
       switch (e.key) {
         case "ArrowUp":
+          e.preventDefault();
           if (directionRef.current.y !== 1) directionRef.current = { x: 0, y: -1 };
           break;
         case "ArrowDown":
+          e.preventDefault();
           if (directionRef.current.y !== -1) directionRef.current = { x: 0, y: 1 };
           break;
         case "ArrowLeft":
+          e.preventDefault();
           if (directionRef.current.x !== 1) directionRef.current = { x: -1, y: 0 };
           break;
         case "ArrowRight":
+          e.preventDefault();
           if (directionRef.current.x !== -1) directionRef.current = { x: 1, y: 0 };
           break;
       }

@@ -14,6 +14,21 @@ function stripXmlTags(value: string) {
   return decodeXmlText(value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }
 
+function extractXmlText(xml: string): string[] {
+  const results: string[] = [];
+  const textMatches = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)];
+  for (const match of textMatches) {
+    const text = decodeXmlText(match[1]).trim();
+    if (text) results.push(text);
+  }
+  const altMatches = [...xml.matchAll(/descr="([^"]+)"/g)];
+  for (const match of altMatches) {
+    const text = decodeXmlText(match[1]).trim();
+    if (text && !results.includes(text)) results.push(text);
+  }
+  return results;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const buffer = await request.arrayBuffer();
@@ -24,15 +39,14 @@ export async function POST(request: NextRequest) {
 
     const slides: Array<{ slide: number; text: string; images: string[] }> = [];
 
-    for (const fileName of slideFiles) {
+for (const fileName of slideFiles) {
       const xml = await zip.files[fileName].async("string");
-      const textMatches = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)].map((match) => decodeXmlText(match[1]));
-      const altMatches = [...xml.matchAll(/descr="([^"]+)"/g)].map((match) => decodeXmlText(match[1]));
+      const textMatches = extractXmlText(xml);
       const imageRefs = [...xml.matchAll(/<a:blip[^>]+r:embed="([^"]+)"/g)].map((match) => match[1]);
       const slideNumber = Number(fileName.match(/slide(\d+)/)?.[1] ?? slides.length + 1);
       slides.push({
         slide: slideNumber,
-        text: [...textMatches, ...altMatches].filter(Boolean).join("\n"),
+        text: textMatches.join("\n"),
         images: imageRefs,
       });
     }

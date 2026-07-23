@@ -40,9 +40,9 @@ const GAMES: GameType[] = [
   {
     id: "tic-tac-toe",
     title: "Tic Tac Toe",
-    description: "Play local, find an online opponent, or invite a friend with a private code.",
-    category: "online",
-    players: "1-2 Players",
+    description: "Classic two-player game. Pass the phone back and forth!",
+    category: "offline",
+    players: "2 Players",
     difficulty: "Easy",
     icon: "⭕",
     path: "/games/tic-tac-toe",
@@ -60,8 +60,8 @@ const GAMES: GameType[] = [
   {
     id: "pong",
     title: "Pong Battle",
-    description: "Classic paddle game with AI practice, quick matchmaking, and private room codes.",
-    category: "online",
+    description: "Classic paddle game. Challenge the AI or play local two-player!",
+    category: "offline",
     players: "1-2 Players",
     difficulty: "Medium",
     icon: "🏓",
@@ -110,9 +110,9 @@ const GAMES: GameType[] = [
   {
     id: "trivia",
     title: "Trivia Battle",
-    description: "Answer questions solo or queue into an online trivia lobby with a room code.",
-    category: "online",
-    players: "1-4 Players",
+    description: "50 questions across science, history, tech, and more. 10 randomly selected each round!",
+    category: "offline",
+    players: "1 Player",
     difficulty: "Hard",
     icon: "❓",
     path: "/games/trivia",
@@ -138,7 +138,7 @@ export default function GamesPage() {
               Game Collection
             </h1>
             <p className="mb-8 max-w-3xl text-slate-400">
-              Choose from polished arcade, puzzle, and quiz games. Online-ready games now include matchmaking lobby controls and private room codes for sharing with friends.
+              Choose from polished arcade, puzzle, and quiz games. All games run locally in your browser — no internet required after the page loads.
             </p>
 
             <div className="mb-8 flex flex-wrap gap-3">
@@ -153,16 +153,6 @@ export default function GamesPage() {
                 All Games
               </button>
               <button
-                onClick={() => setFilter("online")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 ${
-                  filter === "online"
-                    ? "bg-cyan-600 text-white"
-                    : "border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950/40"
-                }`}
-              >
-                🌐 Online
-              </button>
-              <button
                 onClick={() => setFilter("offline")}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 ${
                   filter === "offline"
@@ -174,7 +164,7 @@ export default function GamesPage() {
               </button>
             </div>
 
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
               {filteredGames.map((game) => (
                 <Link
                   key={game.id}

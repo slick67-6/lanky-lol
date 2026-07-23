@@ -155,15 +155,19 @@ export default function Game2048Page() {
 
       switch (e.key) {
         case "ArrowLeft":
+          e.preventDefault();
           handleMove("left");
           break;
         case "ArrowRight":
+          e.preventDefault();
           handleMove("right");
           break;
         case "ArrowUp":
+          e.preventDefault();
           handleMove("up");
           break;
         case "ArrowDown":
+          e.preventDefault();
           handleMove("down");
           break;
       }

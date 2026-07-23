@@ -6,11 +6,18 @@ import { SiteHeader } from "@/components/site-header";
 import { useState, useEffect, useRef } from "react";
 
 const SAMPLE_TEXTS = [
-  "The quick brown fox jumps over the lazy dog.",
-  "Programming is the art of telling another human what one wants the computer to do.",
-  "In computer science, artificial intelligence is intelligence demonstrated by machines.",
-  "The best way to predict the future is to invent it.",
-  "Technology is best when it brings people together.",
+  "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet at least once.",
+  "Programming is the art of telling another human what one wants the computer to do. It requires patience, logic, and creativity.",
+  "In computer science, artificial intelligence is intelligence demonstrated by machines, as opposed to natural intelligence displayed by humans.",
+  "The best way to predict the future is to invent it. Innovation comes from curiosity and the willingness to challenge assumptions.",
+  "Technology is best when it brings people together. The most impactful tools connect communities and enable collaboration across borders.",
+  "Space exploration has led to countless innovations that benefit life on Earth, from satellite communications to medical imaging technologies.",
+  "Learning to code is like learning a new language. It opens doors to understanding how the digital world around us operates.",
+  "The internet has transformed how we communicate, learn, and work. It connects billions of people across the globe in real time.",
+  "Mathematics is the language of the universe. Every scientific discovery rests on a foundation of mathematical principles and logic.",
+  "Reading expands your mind. Every book you finish adds a new perspective, vocabulary, and understanding of the world around you.",
+  "A journey of a thousand miles begins with a single step. Consistency and persistence matter more than raw talent or speed.",
+  "Great achievements are rarely the work of a single person. Collaboration, teamwork, and shared vision drive meaningful innovation.",
 ];
 
 export default function TypingRaceGamePage() {
@@ -51,6 +58,11 @@ export default function TypingRaceGamePage() {
 
       const correctChars = userInput.split("").filter((char, index) => char === text[index]).length;
       setAccuracy(Math.round((correctChars / userInput.length) * 100) || 100);
+
+      if (userInput === text) {
+        setGameOver(true);
+        setIsPlaying(false);
+      }
     }
   }, [userInput, isPlaying, gameOver, timeLeft, text]);
 
@@ -127,7 +139,9 @@ export default function TypingRaceGamePage() {
 
             {gameOver && (
               <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">Time's Up!</p>
+                <p className="text-lg font-semibold text-cyan-400">
+                  {userInput === text ? "Text Complete!" : "Time's Up!"}
+                </p>
                 <p className="text-slate-400">WPM: {wpm} | Accuracy: {accuracy}%</p>
               </div>
             )}
