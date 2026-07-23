@@ -46,10 +46,10 @@ type NvidiaStreamChunk = {
 
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const DEFAULT_TEXT_MODELS = [
-  "nvidia/nvidia-m3",
+  "minimaxai/minimax-m3",
 ];
 const DEFAULT_VISION_MODELS = [
-  "nvidia/nvidia-m3",
+  "minimaxai/minimax-m3",
 ];
 
 const MAX_HISTORY_MESSAGES = 16;
