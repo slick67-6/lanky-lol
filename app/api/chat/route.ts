@@ -46,13 +46,10 @@ type NvidiaStreamChunk = {
 
 const NVIDIA_INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const DEFAULT_TEXT_MODELS = [
-  "nvidia/llama-3.1-nemotron-nano-8b-v1",
-  "meta/llama-3.1-8b-instruct",
+  "nvidia/nvidia-m3",
 ];
 const DEFAULT_VISION_MODELS = [
-  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
-  "meta/llama-4-scout-17b-16e-instruct",
-  "meta/llama-4-maverick-17b-128e-instruct",
+  "nvidia/nvidia-m3",
 ];
 
 const MAX_HISTORY_MESSAGES = 16;
