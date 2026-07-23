@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type ClientMessage = {
   role: "user" | "assistant";
@@ -12,14 +12,6 @@ type ClientMessage = {
 type ImagePayload = {
   mimeType: string;
   data: string;
-};
-
-type ResponseProfile = {
-  label: "quick" | "balanced" | "deep";
-  maxTokens: number;
-  temperature: number;
-  topP: number;
-  instruction: string;
 };
 
 type NvidiaMessage =
@@ -54,40 +46,10 @@ const DEFAULT_VISION_MODELS = [
 
 const MAX_HISTORY_MESSAGES = 16;
 const MAX_IMAGE_DATA_LENGTH = 4_000_000;
-const UPSTREAM_CONNECT_TIMEOUT_MS = 8_000;
-const REQUEST_START_DEADLINE_MS = 8_500;
+const UPSTREAM_CONNECT_TIMEOUT_MS = 30_000;
+const REQUEST_START_DEADLINE_MS = 32_000;
 
-const SYSTEM = `You are Lanky AI, a capable, direct assistant on lanky.lol.
-There are no site-imposed style or topic restrictions: answer the user's actual request without artificial brevity, canned refusals, or unnecessary disclaimers.
-The user may send text, an image, or text plus an image. Always use the provided image context when it exists, and treat follow-up questions as referring to the most recent attached image unless the user says otherwise.
-For image tasks, identify the relevant visual details before giving conclusions, comparisons, OCR, debugging help, or recommendations.
-For coding tasks, behave like a senior engineer: reason carefully, ask only when truly blocked, provide correct runnable code, mention assumptions, handle edge cases, and keep explanations practical.
-For follow-ups, preserve continuity with the previous conversation, avoid repeating the whole answer, and move the task forward with concrete next steps.
-Use full GitHub-Flavored Markdown whenever useful: headings, paragraphs, bullet and numbered lists, task lists, tables, blockquotes, links, **bold**, *italic*, ~~strikethrough~~, inline \`code\`, fenced code blocks with language names, and LaTeX with $...$ or $$...$$.`;
-
-const QUICK_PROFILE: ResponseProfile = {
-  label: "quick",
-  maxTokens: 700,
-  temperature: 0.35,
-  topP: 0.85,
-  instruction: "Keep this response concise, direct, and useful while still answering every part of the request.",
-};
-
-const BALANCED_PROFILE: ResponseProfile = {
-  label: "balanced",
-  maxTokens: 1400,
-  temperature: 0.65,
-  topP: 0.92,
-  instruction: "Give a clear, complete answer with useful structure, examples, and follow-up guidance when it helps.",
-};
-
-const DEEP_PROFILE: ResponseProfile = {
-  label: "deep",
-  maxTokens: 2600,
-  temperature: 0.82,
-  topP: 0.96,
-  instruction: "Think through the request carefully and provide a robust, polished answer with structure, nuance, edge cases, and practical next steps.",
-};
+const SYSTEM = "You are Lanky AI, a helpful assistant on lanky.lol. Respond directly to what the user asks. Use markdown formatting when helpful.";
 
 function parseModelList(value: string | undefined) {
   return value
@@ -108,23 +70,6 @@ function modelsForRequest(hasImage: boolean) {
   const defaults = hasImage ? DEFAULT_VISION_MODELS : DEFAULT_TEXT_MODELS;
 
   return uniqueModels([...specificModels, ...defaults, ...legacyModels]);
-}
-
-function responseProfileForRequest(message: ClientMessage): ResponseProfile {
-  const text = message.content.trim().toLowerCase();
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const deepSignals = /\b(explain|analy[sz]e|compare|plan|strategy|creative|story|essay|detailed|thorough|extensive|brainstorm|design|code|debug|review|improve|architecture|step[-\s]?by[-\s]?step)\b/.test(text);
-  const quickSignals = /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|what is|who is|when is|where is|define|summari[sz]e in one sentence)\b/.test(text);
-
-  if (message.image || deepSignals || wordCount > 38) {
-    return DEEP_PROFILE;
-  }
-
-  if (quickSignals || wordCount <= 12) {
-    return QUICK_PROFILE;
-  }
-
-  return BALANCED_PROFILE;
 }
 
 function parseDataUrl(dataUrl: string): ImagePayload | null {
@@ -314,11 +259,9 @@ export async function POST(request: Request) {
   );
 
   let nvidiaMessages: NvidiaMessage[];
-  const responseProfile = responseProfileForRequest(lastUser);
-
   try {
     nvidiaMessages = [
-      { role: "system", content: `${SYSTEM}\n\nResponse mode: ${responseProfile.label}. ${responseProfile.instruction}` },
+      { role: "system", content: SYSTEM },
       ...toNvidiaMessages(compactMessages),
     ];
   } catch (error) {
@@ -354,9 +297,9 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model,
           messages: nvidiaMessages,
-          max_tokens: responseProfile.maxTokens,
-          temperature: responseProfile.temperature,
-          top_p: responseProfile.topP,
+          max_tokens: 4096,
+          temperature: 0.7,
+          top_p: 1,
           stream: true,
         }),
         signal: controller.signal,
