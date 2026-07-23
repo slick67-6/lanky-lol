@@ -2,6 +2,7 @@
 
 import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Message = {
@@ -72,223 +73,6 @@ async function compressImageForChat(file: File) {
 
   context.drawImage(image, 0, 0, width, height);
   return canvas.toDataURL("image/jpeg", COMPRESSED_IMAGE_QUALITY);
-}
-
-function renderInline(text: string) {
-  const nodes: React.ReactNode[] = [];
-  const pattern = /(\[[^\]\n]+\]\([^)\s]+\)|\*\*[^*\n]+\*\*|~~[^~\n]+~~|\*[^*\n]+\*|`[^`\n]+`|\$[^$\n]+\$)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    const link = token.match(/^\[([^\]\n]+)\]\(([^)\s]+)\)$/);
-    if (link) {
-      nodes.push(
-        <a
-          key={`${match.index}-link`}
-          href={link[2]}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 hover:text-cyan-100"
-        >
-          {link[1]}
-        </a>,
-      );
-    } else if (token.startsWith("**") && token.endsWith("**")) {
-      nodes.push(
-        <strong key={`${match.index}-bold`} className="font-semibold text-slate-50">
-          {token.slice(2, -2)}
-        </strong>,
-      );
-    } else if (token.startsWith("~~") && token.endsWith("~~")) {
-      nodes.push(
-        <del key={`${match.index}-strike`} className="text-slate-300 decoration-slate-500">
-          {token.slice(2, -2)}
-        </del>,
-      );
-    } else if (token.startsWith("*")) {
-      nodes.push(
-        <em key={`${match.index}-italic`} className="italic text-slate-100">
-          {token.slice(1, -1)}
-        </em>,
-      );
-    } else if (token.startsWith("$")) {
-      nodes.push(
-        <span key={`${match.index}-math`} className="font-medium italic text-cyan-200">
-          {token.slice(1, -1)}
-        </span>,
-      );
-    } else {
-      nodes.push(
-        <code
-          key={`${match.index}-code`}
-          className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[0.92em] text-cyan-100"
-        >
-          {token.slice(1, -1)}
-        </code>,
-      );
-    }
-
-    lastIndex = pattern.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
-  }
-
-  return nodes;
-}
-
-function renderTextBlock(segment: string) {
-  const lines = segment.split("\n");
-  const blocks: React.ReactNode[] = [];
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      blocks.push(<div key={`space-${index}`} className="h-1" />);
-      continue;
-    }
-
-    const blockMath = trimmed.match(/^\$\$([\s\S]+)\$\$$/);
-    if (blockMath) {
-      blocks.push(
-        <p key={index} className="overflow-x-auto rounded-lg bg-slate-950/50 px-3 py-2 text-center font-semibold italic text-cyan-100">
-          {blockMath[1]}
-        </p>,
-      );
-      continue;
-    }
-
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      const HeadingTag = (`h${heading[1].length + 2}` as "h3" | "h4" | "h5");
-      blocks.push(
-        <HeadingTag key={index} className="mt-3 font-semibold text-cyan-50 first:mt-0">
-          {renderInline(heading[2])}
-        </HeadingTag>,
-      );
-      continue;
-    }
-
-    if (/^[-*]\s+|^[-*]\s+\[[ xX]\]\s+/.test(trimmed)) {
-      const items: Array<{ text: string; checked?: boolean }> = [];
-      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
-        const item = lines[index].trim().replace(/^[-*]\s+/, "");
-        const task = item.match(/^\[([ xX])\]\s+(.+)$/);
-        items.push(task ? { text: task[2], checked: task[1].toLowerCase() === "x" } : { text: item });
-        index += 1;
-      }
-      index -= 1;
-      blocks.push(
-        <ul key={index} className="ml-5 list-disc space-y-1">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex} className={item.checked === undefined ? undefined : "list-none"}>
-              {item.checked !== undefined && (
-                <span className={`mr-2 inline-flex h-4 w-4 items-center justify-center rounded border text-[0.65rem] ${item.checked ? "border-cyan-400 bg-cyan-400/20 text-cyan-100" : "border-slate-600 text-transparent"}`}>
-                  ✓
-                </span>
-              )}
-              {renderInline(item.text)}
-            </li>
-          ))}
-        </ul>,
-      );
-      continue;
-    }
-
-    if (/^\d+[.)]\s+/.test(trimmed)) {
-      const items: string[] = [];
-      while (index < lines.length && /^\d+[.)]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^\d+[.)]\s+/, ""));
-        index += 1;
-      }
-      index -= 1;
-      blocks.push(
-        <ol key={index} className="ml-5 list-decimal space-y-1">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
-          ))}
-        </ol>,
-      );
-      continue;
-    }
-
-    if (trimmed.includes("|") && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1])) {
-      const headers = trimmed.replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
-      index += 2;
-      const rows: string[][] = [];
-      while (index < lines.length && lines[index].includes("|")) {
-        rows.push(lines[index].trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim()));
-        index += 1;
-      }
-      index -= 1;
-      blocks.push(
-        <div key={index} className="overflow-x-auto rounded-xl border border-slate-700/70">
-          <table className="min-w-full divide-y divide-slate-700/70 text-left text-sm">
-            <thead className="bg-slate-900/80">
-              <tr>{headers.map((header, headerIndex) => <th key={headerIndex} className="px-3 py-2 font-semibold text-cyan-100">{renderInline(header)}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80">
-              {rows.map((row, rowIndex) => (
-                <tr key={rowIndex}>{headers.map((_, cellIndex) => <td key={cellIndex} className="px-3 py-2 text-slate-200">{renderInline(row[cellIndex] ?? "")}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
-        </div>,
-      );
-      continue;
-    }
-
-    if (trimmed.startsWith(">")) {
-      blocks.push(
-        <blockquote key={index} className="border-l-2 border-cyan-500/50 pl-3 text-slate-300">
-          {renderInline(trimmed.replace(/^>\s?/, ""))}
-        </blockquote>,
-      );
-      continue;
-    }
-
-    blocks.push(<p key={index}>{renderInline(line)}</p>);
-  }
-
-  return blocks;
-}
-
-function AssistantContent({ content, isStreaming = false }: { content: string; isStreaming?: boolean }) {
-  const segments = content.split(/```([\s\S]*?)```/g);
-  return (
-    <div className="space-y-2">
-      {segments.map((segment, i) => {
-        if (i % 2 === 1) {
-          return (
-            <pre
-              key={`code-${i}`}
-              className="overflow-x-auto rounded-xl border border-slate-700/70 bg-[#0b1220] p-3"
-            >
-              <code className="font-mono text-[0.86em] text-cyan-100">{segment.trim()}</code>
-            </pre>
-          );
-        }
-
-        return (
-          <div key={`txt-${i}`} className="space-y-1 whitespace-pre-wrap">
-            {renderTextBlock(segment)}
-          </div>
-        );
-      })}
-      {isStreaming && (
-        <span className="inline-block h-5 w-2 translate-y-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.75)]" aria-hidden />
-      )}
-    </div>
-  );
 }
 
 export default function ImageAnalyserPage() {
@@ -581,7 +365,12 @@ export default function ImageAnalyserPage() {
                     />
                   )}
                   {m.role === "assistant" ? (
-                    <AssistantContent content={m.content} isStreaming={streamingMessageId === m.id} />
+                    <>
+                      <MarkdownRenderer>{m.content}</MarkdownRenderer>
+                      {streamingMessageId === m.id && (
+                        <span className="inline-block h-5 w-2 translate-y-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.75)]" aria-hidden />
+                      )}
+                    </>
                   ) : (
                     <p className="whitespace-pre-wrap">{m.content}</p>
                   )}

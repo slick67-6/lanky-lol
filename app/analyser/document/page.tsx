@@ -2,6 +2,7 @@
 
 import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Message = {
@@ -573,33 +574,33 @@ export default function DocumentAnalyserPage() {
             {activeTab === "notes" && (
               <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
                 <h2 className="mb-4 text-xl font-semibold text-cyan-100">Key Notes</h2>
-                <div className="prose prose-invert prose-cyan max-w-none">
-                  <p className="text-slate-300">
-                    Document has been analyzed. Key insights extracted from the content will appear here.
-                  </p>
-                  {documentContent && (
-                    <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
-                      <h3 className="mb-2 text-sm font-medium text-cyan-200">Document Preview</h3>
-                      <p className="text-sm text-slate-400 line-clamp-10">
-                        {documentContent.substring(0, 2000)}...
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {generatedAnalysis?.notes ? (
+                  <MarkdownRenderer>{generatedAnalysis.notes}</MarkdownRenderer>
+                ) : (
+                  <p className="text-slate-300">No notes generated yet.</p>
+                )}
+                {documentContent && (
+                  <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
+                    <h3 className="mb-2 text-sm font-medium text-cyan-200">Document Preview</h3>
+                    <p className="text-sm text-slate-400 line-clamp-10">
+                      {documentContent.substring(0, 2000)}...
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === "answers" && (
               <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
                 <h2 className="mb-4 text-xl font-semibold text-cyan-100">Answers</h2>
-                <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-300">{generatedAnalysis?.answers}</pre>
+                <MarkdownRenderer>{generatedAnalysis?.answers ?? ""}</MarkdownRenderer>
               </div>
             )}
 
             {activeTab === "quiz" && (
               <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
                 <h2 className="mb-4 text-xl font-semibold text-cyan-100">Quiz</h2>
-                <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-300">{generatedAnalysis?.quiz}</pre>
+                <MarkdownRenderer>{generatedAnalysis?.quiz ?? ""}</MarkdownRenderer>
               </div>
             )}
 
@@ -632,7 +633,11 @@ export default function DocumentAnalyserPage() {
                               {streamingMessageId === m.id ? "Thinking live" : "Lanky AI"}
                             </div>
                           )}
-                          <p className="whitespace-pre-wrap">{m.content}</p>
+                          {m.role === "assistant" ? (
+                            <MarkdownRenderer>{m.content}</MarkdownRenderer>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{m.content}</p>
+                          )}
                         </div>
                       </div>
                     ))}
