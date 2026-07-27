@@ -198,13 +198,14 @@ const GAMES: GameType[] = [
 export default function GamesPage() {
   const [filter, setFilter] = useState<GameCategory>("all");
   const [search, setSearch] = useState("");
-  const [favorites] = useState<string[]>(() => getFavoriteGames());
+  const [favorites, setFavorites] = useState<string[]>(() => getFavoriteGames());
   const router = useRouter();
 
   const handleFavoriteClick = (e: React.MouseEvent, gameId: string) => {
     e.preventDefault();
     e.stopPropagation();
     toggleFavoriteGame(gameId);
+    setFavorites(getFavoriteGames());
   };
 
   const launchRandomGame = () => {

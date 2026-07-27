@@ -1,186 +1,202 @@
 "use client";
 
-import { ParticlesBackground } from "@/components/particles-background";
-import { SiteHeader } from "@/components/site-header";
 import { useState } from "react";
 import Link from "next/link";
-import { useTheme } from "@/lib/theme-context";
+import { SiteHeader } from "@/components/site-header";
+import { ParticlesBackground } from "@/components/particles-background";
 import { getRecentlyPlayed } from "@/lib/achievements";
 
+const FEATURED_GAMES = [
+  { id: "typing-race", title: "Typing Race", icon: "⌨️", path: "/games/typing-race", desc: "Test raw typing speed with random words" },
+  { id: "flappy-bird", title: "Flappy Bird", icon: "🐦", path: "/games/flappy-bird", desc: "Dodge pipes, beat your high score" },
+  { id: "tetris", title: "Tetris", icon: "🧩", path: "/games/tetris", desc: "Rotate blocks, clear lines" },
+  { id: "snake", title: "Snake", icon: "🐍", path: "/games/snake", desc: "Classic queue-turn snake" },
+  { id: "aim-trainer", title: "Aim Trainer", icon: "🎯", path: "/games/aim-trainer", desc: "Click shrinking targets fast" },
+  { id: "minesweeper", title: "Minesweeper", icon: "💣", path: "/games/minesweeper", desc: "Don&apos;t hit a mine" },
+];
+
+const STATS = [
+  { label: "Arcade games", value: "17" },
+  { label: "Online chess", value: "Live" },
+  { label: "No sign-up", value: "Free" },
+];
+
 export default function HomePage() {
-  const { setIsCommandPaletteOpen } = useTheme();
-  const [recentlyPlayedIds] = useState<string[]>(() => getRecentlyPlayed());
+  const [recent] = useState<string[]>(() => getRecentlyPlayed());
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712] text-slate-100 selection:bg-cyan-500/30 font-sans">
+    <div className="flex min-h-dvh w-full flex-col bg-[#030712] text-slate-100 selection:bg-white/20">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader />
 
-        <main className="flex flex-1 flex-col px-6 py-12">
-          <div className="mx-auto w-full max-w-6xl">
-            {/* Hero Section */}
-            <div className="mb-16 text-center pt-8">
-              <h1 className="mb-6 text-4xl font-extrabold tracking-tight text-cyan-50 sm:text-6xl lg:text-7xl leading-tight">
-                AI Tools & Browser Games <br />
-                <span className="bg-gradient-to-r from-cyan-400 via-emerald-300 to-indigo-400 bg-clip-text text-transparent">
-                  Built for Speed.
-                </span>
-              </h1>
-              <p className="mx-auto mb-8 max-w-xl text-base text-slate-400 sm:text-lg leading-relaxed">
-                Play online chess, test your typing speed, analyze images and documents, or enjoy 17 browser arcade games. Fast, simple, and free.
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/chess"
-                  className="rounded-2xl bg-cyan-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 hover:scale-105"
-                >
-                  ♟️ Play Online Chess
-                </Link>
-                <Link
-                  href="/games"
-                  className="rounded-2xl border border-cyan-500/30 bg-slate-950/80 px-7 py-3.5 text-base font-bold text-cyan-200 transition-all hover:border-cyan-400/60 hover:bg-cyan-950/60"
-                >
-                  🎮 Arcade Collection
-                </Link>
-                <button
-                  onClick={() => setIsCommandPaletteOpen(true)}
-                  className="rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-3.5 text-base font-semibold text-slate-300 transition-all hover:border-slate-600"
-                >
-                  🔍 Search (⌘K)
-                </button>
-              </div>
+        <main className="flex-1">
+          {/* ── Hero ── */}
+          <section className="flex flex-col items-center justify-center px-6 pt-24 pb-16 text-center">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-4 py-1.5 text-xs font-semibold text-white/50 backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Online chess matchmaking live
             </div>
 
-            {/* Recently Played Bar */}
-            {recentlyPlayedIds.length > 0 && (
-              <div className="mb-16 rounded-3xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
-                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-2">
-                  <span>⏱️</span> Continue Playing
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {recentlyPlayedIds.map((id) => (
+            <h1 className="mb-5 max-w-xl text-5xl font-extrabold tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.08]">
+              Play chess.
+              <br />
+              <span className="text-white/30">No account.</span>
+            </h1>
+
+            <p className="mb-8 max-w-md text-base text-white/40 leading-relaxed sm:text-lg">
+              Find a live opponent in seconds, or pick from 17 arcade games. Everything runs in your browser.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/chess"
+                className="rounded-2xl bg-white px-8 py-3.5 text-sm font-bold text-[#030712] transition-all hover:bg-white/90 hover:scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.15)]"
+              >
+                ♟ Find a match
+              </Link>
+              <Link
+                href="/games"
+                className="rounded-2xl border border-white/15 bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 transition-all hover:border-white/25 hover:bg-white/[0.09] hover:text-white"
+              >
+                Arcade games
+              </Link>
+            </div>
+          </section>
+
+          {/* ── Stats row ── */}
+          <section className="mx-auto mb-16 flex w-full max-w-3xl justify-center gap-0 px-6">
+            {STATS.map((s, i) => (
+              <div
+                key={s.label}
+                className={`flex flex-1 flex-col items-center py-5 ${
+                  i < STATS.length - 1 ? "border-r border-white/[0.07]" : ""
+                }`}
+              >
+                <span className="text-2xl font-extrabold tracking-tight text-white">{s.value}</span>
+                <span className="mt-1 text-xs text-white/30 font-medium">{s.label}</span>
+              </div>
+            ))}
+          </section>
+
+          <div className="mx-auto w-full max-w-5xl px-6 pb-20 space-y-16">
+
+            {/* ── Recently played ── */}
+            {recent.length > 0 && (
+              <section>
+                <h2 className="mb-3 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-white/25">
+                  Continue playing
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {recent.map((id) => (
                     <Link
                       key={id}
                       href={`/games/${id}`}
-                      className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-4 py-2 text-xs font-bold text-cyan-200 hover:bg-cyan-900/60 transition-colors"
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-white/50 transition-all hover:border-white/15 hover:bg-white/[0.07] hover:text-white/80"
                     >
-                      🎮 {id.replace("-", " ").toUpperCase()}
+                      {id.replace(/-/g, " ")}
                     </Link>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* AI Tools Grid */}
-            <div className="mb-16">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-cyan-100 sm:text-3xl">
-                  AI Workspace Tools
-                </h2>
-                <p className="text-sm text-slate-400">Analyze images, documents, and code with fast AI models.</p>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Link
-                  href="/analyser/image"
-                  className="group rounded-3xl border border-cyan-500/20 bg-slate-950/70 p-8 backdrop-blur-xl transition-all duration-300 hover:border-cyan-400/50 hover:bg-slate-950/90 hover:shadow-[0_0_35px_rgba(34,211,238,0.2)]"
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-950/60 text-3xl shadow-inner border border-cyan-500/30 group-hover:scale-110 transition-transform">
-                    🖼️
+            {/* ── Chess feature card ── */}
+            <section>
+              <h2 className="mb-4 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-white/25">
+                Featured
+              </h2>
+              <Link
+                href="/chess"
+                className="group block rounded-3xl border border-white/[0.08] bg-white/[0.03] p-8 transition-all duration-300 hover:border-white/15 hover:bg-white/[0.05]"
+              >
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="text-4xl">♟</span>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">Lanky Chess</h3>
+                        <p className="text-sm text-white/35">1v1 online matchmaking</p>
+                      </div>
+                    </div>
+                    <p className="max-w-sm text-sm text-white/40 leading-relaxed">
+                      Click Find a Match and you&apos;re paired with a real opponent automatically. No rooms, no lobbies, no accounts.
+                    </p>
                   </div>
-                  <h3 className="mb-2 text-xl font-bold text-cyan-100 group-hover:text-cyan-400 transition-colors">
-                    AI Image Analyser
-                  </h3>
-                  <p className="text-sm leading-relaxed text-slate-400">
-                    Upload images or paste screenshots to inspect code, extract text, or get visual explanations.
-                  </p>
-                </Link>
-
-                <Link
-                  href="/analyser/document"
-                  className="group rounded-3xl border border-cyan-500/20 bg-slate-950/70 p-8 backdrop-blur-xl transition-all duration-300 hover:border-cyan-400/50 hover:bg-slate-950/90 hover:shadow-[0_0_35px_rgba(34,211,238,0.2)]"
-                >
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-950/60 text-3xl shadow-inner border border-cyan-500/30 group-hover:scale-110 transition-transform">
-                    📄
+                  <div className="shrink-0 flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.07] px-6 py-3 text-sm font-bold text-white transition-all group-hover:bg-white/[0.12]">
+                    Play now →
                   </div>
-                  <h3 className="mb-2 text-xl font-bold text-cyan-100 group-hover:text-cyan-400 transition-colors">
-                    AI Document Workspace
-                  </h3>
-                  <p className="text-sm leading-relaxed text-slate-400">
-                    Upload PDFs, Word docs, or slides to generate study notes, Q&A summaries, and quizzes.
-                  </p>
-                </Link>
-              </div>
-            </div>
-
-            {/* Arcade Collection Highlights */}
-            <div className="mb-16">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-cyan-100 sm:text-3xl">
-                    Arcade Games
-                  </h2>
-                  <p className="text-sm text-slate-400">Browser games with full keyboard and touchscreen controls.</p>
                 </div>
+              </Link>
+            </section>
+
+            {/* ── Arcade grid ── */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[0.7rem] font-bold uppercase tracking-[0.1em] text-white/25">
+                  Arcade games
+                </h2>
                 <Link
                   href="/games"
-                  className="text-xs font-bold text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+                  className="text-xs font-semibold text-white/30 hover:text-white/60 transition-colors"
                 >
-                  View Arcade Collection →
+                  View all 17 →
                 </Link>
               </div>
-
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { title: "Online Chess", icon: "♟️", path: "/chess", desc: "Real-time 1v1 online matchmaking." },
-                  { title: "Typing Race", icon: "⌨️", path: "/games/typing-race", desc: "Monkeytype-style raw typing test." },
-                  { title: "Flappy Bird", icon: "🐦", path: "/games/flappy-bird", desc: "Dodge obstacles and set high scores." },
-                  { title: "Tetris", icon: "🧩", path: "/games/tetris", desc: "Rotate blocks & clear line multipliers." },
-                  { title: "Snake Classic", icon: "🐍", path: "/games/snake", desc: "Queue turns & speed up." },
-                  { title: "Aim Trainer", icon: "🎯", path: "/games/aim-trainer", desc: "Target tracking & reaction delay." },
-                ].map((g, idx) => (
+              <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {FEATURED_GAMES.map((g) => (
                   <Link
-                    key={idx}
+                    key={g.path}
                     href={g.path}
-                    className="group flex items-center gap-4 rounded-3xl border border-cyan-500/20 bg-slate-950/70 p-5 backdrop-blur-xl transition-all hover:border-cyan-400/50 hover:bg-slate-950/90"
+                    className="group flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-4 transition-all hover:border-white/[0.13] hover:bg-white/[0.055]"
                   >
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-950/60 text-2xl shadow-inner border border-cyan-500/20 group-hover:scale-110 transition-transform">
-                      {g.icon}
-                    </div>
-                    <div>
-                      <h4 className="text-base font-bold text-cyan-100 group-hover:text-cyan-300 transition-colors">
+                    <span className="text-2xl shrink-0">{g.icon}</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-white/80 group-hover:text-white transition-colors truncate">
                         {g.title}
-                      </h4>
-                      <p className="text-xs text-slate-400">{g.desc}</p>
+                      </div>
+                      <div className="text-xs text-white/30 truncate">{g.desc}</div>
                     </div>
                   </Link>
                 ))}
               </div>
-            </div>
+            </section>
+
+            {/* ── Tools section ── */}
+            <section>
+              <h2 className="mb-4 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-white/25">
+                Tools
+              </h2>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {[
+                  { href: "/analyser/image", icon: "🖼️", title: "Image Analyser", desc: "Upload an image or screenshot for instant analysis" },
+                  { href: "/analyser/document", icon: "📄", title: "Document Workspace", desc: "Upload PDFs, docs or slides to generate notes and Q&A" },
+                ].map((t) => (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    className="group flex items-center gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-5 transition-all hover:border-white/[0.13] hover:bg-white/[0.055]"
+                  >
+                    <span className="text-2xl shrink-0">{t.icon}</span>
+                    <div>
+                      <div className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">{t.title}</div>
+                      <div className="text-xs text-white/30 leading-snug mt-0.5">{t.desc}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-cyan-500/20 bg-[#030712]/95 px-6 py-8 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
-            <p className="text-xs text-slate-500">
-              © 2026 <strong>lanky.lol</strong>
-            </p>
-            <div className="flex gap-4 text-xs font-semibold text-slate-400">
-              <Link href="/chess" className="hover:text-cyan-300">
-                Chess
-              </Link>
-              <Link href="/games" className="hover:text-cyan-300">
-                Arcade
-              </Link>
-              <Link href="/analyser/image" className="hover:text-cyan-300">
-                Image AI
-              </Link>
-              <Link href="/analyser/document" className="hover:text-cyan-300">
-                Doc AI
-              </Link>
+        <footer className="border-t border-white/[0.06] px-6 py-6">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 flex-wrap">
+            <p className="text-xs text-white/20">© 2026 lanky.lol</p>
+            <div className="flex gap-5 text-xs font-medium text-white/25">
+              <Link href="/chess" className="hover:text-white/50 transition-colors">Chess</Link>
+              <Link href="/games" className="hover:text-white/50 transition-colors">Arcade</Link>
+              <Link href="/analyser/image" className="hover:text-white/50 transition-colors">Image</Link>
+              <Link href="/analyser/document" className="hover:text-white/50 transition-colors">Docs</Link>
             </div>
           </div>
         </footer>
