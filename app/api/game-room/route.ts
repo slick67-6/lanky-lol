@@ -10,6 +10,7 @@ type Room = {
 };
 
 const localRooms = new Map<string, Room>();
+let waitingChessRoomId: string | null = null;
 
 function generateRoomCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -63,32 +64,34 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, roomCode, game, playerId, state } = body;
 
-    if (action === "create") {
+    // Automatic Quick Matchmaking for Chess
+    if (action === "matchmake") {
+      if (waitingChessRoomId) {
+        const existingRoom = await kvGetRoom(waitingChessRoomId);
+        if (existingRoom && existingRoom.players.length === 1 && !existingRoom.players.includes(playerId)) {
+          existingRoom.players.push(playerId);
+          existingRoom.state.status = "playing";
+          existingRoom.lastUpdate = Date.now();
+          await kvSetRoom(existingRoom.id, existingRoom);
+          const currentWaitingId = waitingChessRoomId;
+          waitingChessRoomId = null;
+          return NextResponse.json({ roomCode: currentWaitingId, room: existingRoom, color: "b" });
+        }
+      }
+
+      // Create a waiting room
       const code = generateRoomCode();
-      const room: Room = {
+      const newRoom: Room = {
         id: code,
-        game: game || "unknown",
-        state: {},
-        players: [playerId || "player1"],
+        game: game || "chess",
+        state: { status: "waiting" },
+        players: [playerId],
         createdAt: Date.now(),
         lastUpdate: Date.now(),
       };
-      await kvSetRoom(code, room);
-      return NextResponse.json({ roomCode: code, room });
-    }
-
-    if (action === "join") {
-      const room = await kvGetRoom(roomCode);
-      if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
-      if (room.players.length >= 2 && !room.players.includes(playerId)) {
-        return NextResponse.json({ error: "Room is full" }, { status: 400 });
-      }
-      if (playerId && !room.players.includes(playerId)) {
-        room.players.push(playerId);
-      }
-      room.lastUpdate = Date.now();
-      await kvSetRoom(roomCode, room);
-      return NextResponse.json({ room });
+      waitingChessRoomId = code;
+      await kvSetRoom(code, newRoom);
+      return NextResponse.json({ roomCode: code, room: newRoom, color: "w" });
     }
 
     if (action === "update") {

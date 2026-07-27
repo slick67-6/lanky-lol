@@ -25,9 +25,10 @@ export function SiteHeader({ title }: SiteHeaderProps) {
 
   const navItems = [
     { href: "/", label: "Home" },
+    { href: "/chess", label: "Chess" },
     { href: "/analyser/image", label: "Image AI" },
     { href: "/analyser/document", label: "Doc AI" },
-    { href: "/games", label: "Games Arcade" },
+    { href: "/games", label: "Arcade Games" },
   ];
 
   return (
@@ -41,7 +42,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-500/20 text-xs font-black text-cyan-300 group-hover:scale-105 transition-transform">
             L
           </span>
-          <span className="font-[family-name:var(--font-syne)] text-sm font-bold tracking-wide text-cyan-100">
+          <span className="font-sans text-sm font-bold tracking-wide text-cyan-100">
             lanky.lol
           </span>
         </Link>
@@ -76,7 +77,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
         })}
       </nav>
 
-      {/* Right Actions: Command Palette, Audio Toggle, Settings & Mobile Menu */}
+      {/* Right Actions */}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -118,7 +119,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
         </button>
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <div className="absolute top-full left-0 right-0 z-50 border-b border-cyan-500/20 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-2xl md:hidden animate-slide-up">
           <nav className="flex flex-col gap-2">
@@ -139,16 +140,6 @@ export function SiteHeader({ title }: SiteHeaderProps) {
                 </Link>
               );
             })}
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsCommandPaletteOpen(true);
-              }}
-              className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-900/60"
-            >
-              <span>🔍</span> Search Commands (Cmd+K)
-            </button>
           </nav>
         </div>
       )}

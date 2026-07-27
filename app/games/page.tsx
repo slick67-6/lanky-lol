@@ -31,7 +31,6 @@ const GAMES: GameType[] = [
     difficulty: "Easy",
     icon: "🐍",
     path: "/games/snake",
-    badge: "Popular",
   },
   {
     id: "pong",
@@ -52,7 +51,6 @@ const GAMES: GameType[] = [
     difficulty: "Medium",
     icon: "🧱",
     path: "/games/breakout",
-    badge: "Fixed Speed",
   },
   {
     id: "2048",
@@ -87,13 +85,12 @@ const GAMES: GameType[] = [
   {
     id: "tic-tac-toe",
     title: "Tic Tac Toe",
-    description: "Play against Minimax AI, 2P Local, or invite friends to Online Rooms!",
+    description: "Play against Minimax AI or 2P Local mode!",
     category: "multiplayer",
     players: "1-2 Players",
     difficulty: "Easy",
     icon: "⭕",
     path: "/games/tic-tac-toe",
-    badge: "Online",
   },
   {
     id: "trivia",
@@ -127,17 +124,6 @@ const GAMES: GameType[] = [
     path: "/games/whack-a-mole",
   },
   {
-    id: "chess",
-    title: "Online Chess",
-    description: "Live 1v1 Real-Time Multiplayer Chess — Create a room and play against friends!",
-    category: "multiplayer",
-    players: "2 Players",
-    difficulty: "Hard",
-    icon: "♟️",
-    path: "/games/chess",
-    badge: "NEW Online",
-  },
-  {
     id: "flappy-bird",
     title: "Flappy Bird",
     description: "Tap or spacebar to flap wings, dodge pipes, and test high-score reflexes!",
@@ -146,7 +132,6 @@ const GAMES: GameType[] = [
     difficulty: "Medium",
     icon: "🐦",
     path: "/games/flappy-bird",
-    badge: "NEW",
   },
   {
     id: "tetris",
@@ -157,7 +142,6 @@ const GAMES: GameType[] = [
     difficulty: "Hard",
     icon: "🧩",
     path: "/games/tetris",
-    badge: "NEW",
   },
   {
     id: "aim-trainer",
@@ -168,7 +152,6 @@ const GAMES: GameType[] = [
     difficulty: "Medium",
     icon: "🎯",
     path: "/games/aim-trainer",
-    badge: "NEW",
   },
   {
     id: "reaction-test",
@@ -179,7 +162,6 @@ const GAMES: GameType[] = [
     difficulty: "Easy",
     icon: "⚡",
     path: "/games/reaction-test",
-    badge: "NEW",
   },
   {
     id: "simon-says",
@@ -190,7 +172,6 @@ const GAMES: GameType[] = [
     difficulty: "Easy",
     icon: "🔔",
     path: "/games/simon-says",
-    badge: "NEW",
   },
   {
     id: "connect-four",
@@ -201,7 +182,6 @@ const GAMES: GameType[] = [
     difficulty: "Easy",
     icon: "🔴",
     path: "/games/connect-four",
-    badge: "NEW",
   },
   {
     id: "hangman",
@@ -212,21 +192,19 @@ const GAMES: GameType[] = [
     difficulty: "Medium",
     icon: "📝",
     path: "/games/hangman",
-    badge: "NEW",
   },
 ];
 
 export default function GamesPage() {
   const [filter, setFilter] = useState<GameCategory>("all");
   const [search, setSearch] = useState("");
-  const [favorites, setFavorites] = useState<string[]>(() => getFavoriteGames());
+  const [favorites] = useState<string[]>(() => getFavoriteGames());
   const router = useRouter();
 
   const handleFavoriteClick = (e: React.MouseEvent, gameId: string) => {
     e.preventDefault();
     e.stopPropagation();
     toggleFavoriteGame(gameId);
-    setFavorites(getFavoriteGames());
   };
 
   const launchRandomGame = () => {
@@ -247,24 +225,21 @@ export default function GamesPage() {
   });
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712] text-slate-100 selection:bg-cyan-500/30">
+    <div className="flex min-h-dvh w-full flex-col bg-[#030712] text-slate-100 selection:bg-cyan-500/30 font-sans">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <SiteHeader title="Arcade Games Collection" />
 
         <main className="flex flex-1 flex-col px-6 py-12">
           <div className="mx-auto w-full max-w-6xl">
-            {/* Header Title & Random Launch */}
+            {/* Header */}
             <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-3 py-1 text-xs font-semibold text-cyan-300">
-                  <span>🎮 18 Playable Arcade Games</span>
-                </div>
-                <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-                  Arcade Collection
+                <h1 className="font-sans text-3xl font-bold text-cyan-50 sm:text-4xl">
+                  Arcade Games Collection
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
-                  Zero-asset loading, Web Audio SFX engine, high scores, and real-time online multiplayer.
+                  17 browser arcade games with sound effects, high scores, and touch controls.
                 </p>
               </div>
 
@@ -283,7 +258,7 @@ export default function GamesPage() {
                   { id: "all" as GameCategory, label: "All Games" },
                   { id: "arcade" as GameCategory, label: "🕹️ Arcade" },
                   { id: "puzzle" as GameCategory, label: "🧩 Puzzle" },
-                  { id: "multiplayer" as GameCategory, label: "🌐 Multiplayer" },
+                  { id: "multiplayer" as GameCategory, label: "👥 2-Player Local" },
                   { id: "favorites" as GameCategory, label: `⭐ Favorites (${favorites.length})` },
                 ].map((tab) => (
                   <button
@@ -304,7 +279,7 @@ export default function GamesPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search 18 games..."
+                placeholder="Search games..."
                 className="w-full sm:w-64 rounded-xl border border-slate-700/80 bg-slate-950/80 px-4 py-2 text-sm text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
               />
             </div>
