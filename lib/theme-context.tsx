@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { soundManager } from "@/lib/audio";
 
-export type AppearanceMode = "dark" | "light" | "amoled" | "auto";
+export type AppearanceMode = "dark" | "amoled" | "auto";
 export type AccentColor = "cyan" | "purple" | "emerald" | "amber" | "rose" | "indigo" | "crimson" | "custom";
 export type BackgroundStyle = "particles" | "grid" | "aurora" | "gradient" | "minimal";
 export type UiDensity = "compact" | "comfortable" | "spacious";
@@ -26,10 +26,11 @@ export interface ThemeSettings {
   particleEffectsEnabled: boolean;
   reducedMotion: boolean;
   highContrast: boolean;
+  chessAnimations: boolean; // piece slide animations — off by default
 }
 
 const DEFAULT_SETTINGS: ThemeSettings = {
-  appearance: "dark",
+  appearance: "amoled",
   accentColor: "cyan",
   customAccentHex: "#22d3ee",
   backgroundStyle: "particles",
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS: ThemeSettings = {
   particleEffectsEnabled: true,
   reducedMotion: false,
   highContrast: false,
+  chessAnimations: false, // off by default
 };
 
 const STORAGE_KEY = "lanky_theme_settings_2026";
@@ -104,19 +106,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.removeProperty("background-color");
     if (s.appearance === "amoled") {
       root.classList.add("dark", "theme-amoled");
-    } else if (s.appearance === "light") {
-      root.classList.remove("dark");
-      root.classList.add("theme-light");
     } else if (s.appearance === "dark") {
       root.classList.add("dark", "theme-dark");
     } else {
+      // auto — always use dark (light theme removed)
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (prefersDark) {
-        root.classList.add("dark", "theme-dark");
-      } else {
-        root.classList.remove("dark");
-        root.classList.add("theme-light");
-      }
+      root.classList.add("dark", prefersDark ? "theme-amoled" : "theme-dark");
     }
 
     // Accent Colors

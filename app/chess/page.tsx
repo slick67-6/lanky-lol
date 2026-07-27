@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { ParticlesBackground } from "@/components/particles-background";
+import { useTheme } from "@/lib/theme-context";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type PieceType  = "p" | "r" | "n" | "b" | "q" | "k";
@@ -161,6 +163,9 @@ function legalTargets(b: Board, r: number, c: number): [number,number][] {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function ChessPage() {
+  // Read global animation preference (off by default)
+  const { settings } = useTheme();
+  const animEnabled = settings.chessAnimations;
   // Board state
   const [board,      setBoard]      = useState<Board>(freshBoard);
   const [boardTheme, setBoardTheme] = useState<BoardTheme>(() => {
@@ -195,6 +200,11 @@ export default function ChessPage() {
   const lastSyncRef = useRef<string>("");
   const statusRef   = useRef<MatchStatus>("idle");
   const soundRef    = useRef(soundOn);
+  // moveLockRef: true immediately after WE make a move, cleared when opponent responds.
+  // Using a ref (not state) so checks inside callbacks are always synchronous/fresh.
+  const moveLockRef     = useRef(false);
+  const [moveLocked, setMoveLocked] = useState(false);
+  const moveLockTimer   = useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
 
   useEffect(() => {
@@ -207,13 +217,30 @@ export default function ChessPage() {
   // ── Helpers ────────────────────────────────────────────────────────────────
   function playSfx(fn: () => void) {
     if (!soundRef.current) return;
-    getCtx(); // warm up
+    getCtx();
     fn();
   }
 
   function showToast(msg: string, type: "ok"|"err"|"info" = "info") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
+  }
+
+  /** Lock the board after we make a move; auto-releases after 30s in case server goes quiet */
+  function acquireMoveLock() {
+    moveLockRef.current = true;
+    setMoveLocked(true);
+    if (moveLockTimer.current) clearTimeout(moveLockTimer.current);
+    moveLockTimer.current = setTimeout(() => {
+      moveLockRef.current = false;
+      setMoveLocked(false);
+    }, 30_000);
+  }
+
+  function releaseMoveLock() {
+    if (moveLockTimer.current) clearTimeout(moveLockTimer.current);
+    moveLockRef.current = false;
+    setMoveLocked(false);
   }
 
   function changeTheme(t: BoardTheme) {
@@ -226,8 +253,9 @@ export default function ChessPage() {
     localStorage.setItem("chess_sound", next.toString());
   }
 
-  // ── Sliding piece animation ────────────────────────────────────────────────
+  // ── Sliding piece animation (only runs when chessAnimations is enabled) ────
   function triggerSlide(fromR: number, fromC: number, toR: number, toC: number, piece: Piece) {
+    if (!animEnabled) return; // skip if animations are disabled
     if (!boardRef.current) return;
     const fromEl = boardRef.current.querySelector<HTMLElement>(`[data-sq="${fromR}-${fromC}"]`);
     const toEl   = boardRef.current.querySelector<HTMLElement>(`[data-sq="${toR}-${toC}"]`);
@@ -259,16 +287,22 @@ export default function ChessPage() {
         showToast("Opponent connected — game on!", "ok");
       }
       const s = data.state;
+      // Apply update only if it came from opponent (not our own echo)
       if (s && s.board && s.sig && s.sig !== lastSyncRef.current && s.lastPlayer !== myId.current) {
         lastSyncRef.current = s.sig;
+        // Opponent moved → release our move lock so we can play again
+        releaseMoveLock();
         setBoard(s.board);
         setTurn(s.turn);
         setLastMove(s.lastMove || null);
         setMoveCount(n => n + 1);
         if (s.capturedW) setCapturedW(s.capturedW);
         if (s.capturedB) setCapturedB(s.capturedB);
-        if (s.winner) { setWinner(s.winner); setStatus("finished"); playSfx(sfxCheck); }
-        else playSfx(sfxMove);
+        if (s.winner) {
+          setWinner(s.winner); setStatus("finished");
+          releaseMoveLock();
+          playSfx(sfxCheck);
+        } else playSfx(sfxMove);
       }
     } catch {}
   }, [roomId]);
@@ -300,6 +334,8 @@ export default function ChessPage() {
 
   // ── Matchmake ──────────────────────────────────────────────────────────────
   async function findMatch() {
+    // Reset move lock for new game
+    releaseMoveLock();
     setStatus("searching"); setBoard(freshBoard()); setTurn("w");
     setSelected(null); setHints([]); setLastMove(null);
     setSlideAnim(null); setHideSq(null);
@@ -326,6 +362,8 @@ export default function ChessPage() {
 
   // ── Square click ──────────────────────────────────────────────────────────
   const handleSquare = useCallback((r: number, c: number) => {
+    // Hard lock: if we already made a move and are waiting for opponent, block all moves
+    if (moveLockRef.current) return;
     if (status !== "playing" || turn !== myColor) return;
     if (!selected) {
       const piece = board[r][c];
@@ -339,6 +377,8 @@ export default function ChessPage() {
     const [fr, fc] = selected;
     if (fr === r && fc === c) { setSelected(null); setHints([]); return; }
     if (isLegal(board, [fr, fc], [r, c], myColor)) {
+      // Lock immediately — synchronous ref check prevents any subsequent click
+      acquireMoveLock();
       const nb  = board.map(row => [...row]);
       const cap = nb[r][c];
       triggerSlide(fr, fc, r, c, nb[fr][fc]!);
@@ -352,7 +392,13 @@ export default function ChessPage() {
       const nextTurn: PieceColor = turn==="w"?"b":"w";
       const newLast = { from:[fr,fc] as [number,number], to:[r,c] as [number,number] };
       let gw: string|null = null;
-      if (cap?.type==="k") { gw = myColor==="w"?"White":"Black"; setWinner(gw); setStatus("finished"); playSfx(sfxCheck); }
+      if (cap?.type==="k") {
+        gw = myColor==="w"?"White":"Black";
+        setWinner(gw); setStatus("finished");
+        // Game over — no need to wait for opponent
+        releaseMoveLock();
+        playSfx(sfxCheck);
+      }
       setBoard(nb); setTurn(nextTurn); setLastMove(newLast); setCapturedW(newCW); setCapturedB(newCB);
       setMoveCount(n=>n+1); setSelected(null); setHints([]);
       pushMove(nb, nextTurn, newLast, newCW, newCB, gw, moveCount+1);
@@ -361,6 +407,8 @@ export default function ChessPage() {
       if (piece?.color === myColor) { setSelected([r,c]); setHints(legalTargets(board,r,c)); playSfx(sfxSelect); }
       else { setSelected(null); setHints([]); }
     }
+  // triggerSlide reads animEnabled (stable after render) and boardRef (ref) — safe to omit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board, selected, myColor, status, turn, capturedW, capturedB, moveCount, pushMove]);
 
   // ── Orientation ───────────────────────────────────────────────────────────
@@ -371,7 +419,8 @@ export default function ChessPage() {
 
   // ── Squares ───────────────────────────────────────────────────────────────
   const squareElements = useMemo(() => {
-    const canAct = status==="playing" && turn===myColor;
+    // canAct: our turn, game playing, and not locked waiting for opponent
+    const canAct = status==="playing" && turn===myColor && !moveLocked;
     return ranks.flatMap((r, ri) =>
       files.map((c, ci) => {
         const piece   = board[r][c];
@@ -411,13 +460,14 @@ export default function ChessPage() {
         );
       })
     );
-  }, [board, selected, hints, lastMove, status, turn, myColor, ranks, files, fileLabels, handleSquare, hideSq]);
+  }, [board, selected, hints, lastMove, status, turn, myColor, ranks, files, fileLabels, handleSquare, hideSq, moveLocked]);
 
-  const isMyTurn = status==="playing" && turn===myColor;
+  const isMyTurn = status==="playing" && turn===myColor && !moveLocked;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="chess-page">
+      <ParticlesBackground />
       {/* Sliding piece overlay — rendered outside the board grid */}
       {slideAnim && (
         <div
@@ -470,8 +520,8 @@ export default function ChessPage() {
                 <span className={`chess-color-dot chess-color-dot--${myColor}`} />
                 <span>{myColor==="w"?"White":"Black"}</span>
               </div>
-              <div className={`chess-turn${isMyTurn?" chess-turn--active":""}`}>
-                {isMyTurn?"Your move":"Waiting…"}
+              <div className={`chess-turn${isMyTurn?" chess-turn--active":moveLocked?" chess-turn--sent":""}`}>
+                {isMyTurn ? "Your move" : moveLocked ? <><span className="chess-pulse-dot chess-pulse-dot--sm" />Sent…</> : "Opponent's turn"}
               </div>
               <div className="chess-move-no">Move {moveCount+1}</div>
             </div>
@@ -535,25 +585,16 @@ export default function ChessPage() {
 
       {/* ── All CSS inlined for isolation ─────────────────────────────────── */}
       <style>{`
-        /* Page */
+        /* Page — transparent so ParticlesBackground shows through */
         .chess-page {
           min-height: 100dvh;
-          background: #080b12;
+          background: transparent;
           color: #fff;
           font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
           display: flex;
           flex-direction: column;
           -webkit-font-smoothing: antialiased;
           position: relative;
-          overflow: hidden;
-        }
-        .chess-page::before {
-          content:'';
-          position:fixed; inset:0;
-          background:
-            radial-gradient(ellipse 70% 55% at 15% 20%, rgba(255,255,255,0.025) 0%, transparent 65%),
-            radial-gradient(ellipse 55% 65% at 85% 80%, rgba(255,255,255,0.018) 0%, transparent 65%);
-          pointer-events:none; z-index:0;
         }
         .chess-page > * { position:relative; z-index:1; }
 
@@ -672,10 +713,18 @@ export default function ChessPage() {
         .chess-color-dot--w { background:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.15),0 0 8px rgba(255,255,255,0.3); }
         .chess-color-dot--b { background:#111; box-shadow:0 0 0 2px rgba(255,255,255,0.25); }
         .chess-turn {
+          display:flex; align-items:center; gap:0.35rem;
           font-size:0.78rem; font-weight:600; color:rgba(255,255,255,0.28);
-          border-radius:999px; padding:0.18rem 0.7rem; border:1px solid transparent; transition:all 0.2s;
+          border-radius:999px; padding:0.18rem 0.7rem; border:1px solid transparent; transition:all 0.25s;
         }
         .chess-turn--active { color:#fff; background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.18); }
+        .chess-turn--sent   { color:rgba(255,255,255,0.45); background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); }
+        .chess-pulse-dot--sm {
+          width:5px; height:5px; border-radius:50%;
+          background:rgba(255,255,255,0.5);
+          animation:pulse-dot 1s ease-in-out infinite;
+          flex-shrink:0;
+        }
         .chess-move-no { font-size:0.74rem; color:rgba(255,255,255,0.24); font-variant-numeric:tabular-nums; }
         .chess-winner  { font-size:0.9rem; font-weight:700; color:#fff; }
 
@@ -699,6 +748,8 @@ export default function ChessPage() {
         .chess-board {
           display:grid;
           grid-template-columns:repeat(8,1fr);
+          /* Explicit rows so the board is always perfectly square across all devices */
+          grid-template-rows:repeat(8,1fr);
           /* Fill as much space as available, capped at 580px, responsive to height */
           width:  min(calc(100vw - 12px), calc(100dvh - 230px), 580px);
           height: min(calc(100vw - 12px), calc(100dvh - 230px), 580px);
@@ -711,7 +762,7 @@ export default function ChessPage() {
             0 0 80px rgba(255,255,255,0.025);
         }
 
-        /* ── Square ── */
+        /* ── Square — NO overflow:hidden so scaled/lifted pieces don't clip ── */
         .chess-square {
           position:relative;
           aspect-ratio:1;
@@ -719,7 +770,7 @@ export default function ChessPage() {
           border:none; cursor:pointer; padding:0; outline:none;
           transition:filter 0.07s;
           -webkit-tap-highlight-color:transparent;
-          overflow:hidden;
+          /* overflow intentionally removed — board clip handles corners */
         }
         .chess-square:disabled { cursor:default; }
         .chess-square:not(:disabled):hover { filter:brightness(1.13); }
@@ -796,11 +847,11 @@ export default function ChessPage() {
         }
         .chess-square:hover:not(:disabled) .chess-piece { transform:scale(1.1); }
 
-        /* Lifted/selected piece */
+        /* Lifted/selected piece — scale only, no translateY that clips outside square */
         .chess-piece--lifted {
-          transform: scale(1.22) translateY(-5%) !important;
-          filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7)) drop-shadow(0 0 20px rgba(255,255,255,0.18));
-          z-index:10;
+          transform: scale(1.25) !important;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.75)) drop-shadow(0 0 18px rgba(255,255,255,0.2));
+          z-index: 10;
         }
 
         /* White piece */

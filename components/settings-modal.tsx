@@ -50,7 +50,6 @@ export function SettingsModal() {
   const APPEARANCES: { id: AppearanceMode; label: string; preview: string }[] = [
     { id: "dark",   label: "Dark",   preview: "#030712" },
     { id: "amoled", label: "AMOLED", preview: "#000000" },
-    { id: "light",  label: "Light",  preview: "#f1f5f9" },
     { id: "auto",   label: "Auto",   preview: "#111827" },
   ];
 
@@ -100,7 +99,7 @@ export function SettingsModal() {
           {/* ── Appearance ── */}
           <section>
             <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Appearance</p>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {APPEARANCES.map(({ id, label, preview }) => {
                 const isActive = settings.appearance === id;
                 return (
@@ -220,6 +219,25 @@ export function SettingsModal() {
             </div>
           </section>
 
+          {/* ── Chess ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Chess</p>
+            <div className="space-y-2">
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-white/60">Piece slide animations</span>
+                    <p className="mt-0.5 text-[0.6rem] text-white/25">Smooth glide when pieces move</p>
+                  </div>
+                  <Toggle
+                    on={settings.chessAnimations}
+                    onChange={(v) => updateSettings({ chessAnimations: v })}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ── Motion ── */}
           <section>
             <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Motion</p>
@@ -231,6 +249,7 @@ export function SettingsModal() {
               />
             </div>
           </section>
+
 
         </div>
 

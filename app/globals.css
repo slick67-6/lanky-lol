@@ -87,7 +87,7 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(18px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fade-in {
@@ -99,9 +99,9 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
   to   { opacity: 1; transform: scale(1); }
 }
 
-.animate-slide-up  { animation: slide-up 0.5s cubic-bezier(.16,1,.3,1) both; }
-.animate-fade-in   { animation: fade-in  0.4s ease-out both; }
-.animate-scale-in  { animation: scale-in 0.45s cubic-bezier(.16,1,.3,1) both; }
+.animate-slide-up  { animation: slide-up 0.45s cubic-bezier(.16,1,.3,1) both; will-change: opacity, transform; }
+.animate-fade-in   { animation: fade-in  0.35s ease-out both; will-change: opacity; }
+.animate-scale-in  { animation: scale-in 0.4s cubic-bezier(.16,1,.3,1) both; will-change: opacity, transform; }
 
 /* Stagger helpers */
 .anim-delay-0   { animation-delay:   0ms; }
