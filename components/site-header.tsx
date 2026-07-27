@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { soundManager } from "@/lib/audio";
+import { useTheme } from "@/lib/theme-context";
 
 type SiteHeaderProps = {
   title?: string;
@@ -11,6 +12,7 @@ type SiteHeaderProps = {
 
 export function SiteHeader({ title }: SiteHeaderProps) {
   const pathname = usePathname();
+  const { setIsSettingsOpen, setIsCommandPaletteOpen } = useTheme();
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     return typeof window !== "undefined" ? soundManager.isMuted() : false;
   });
@@ -30,7 +32,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 flex shrink-0 items-center justify-between border-b border-cyan-500/20 bg-[#030712]/90 px-4 py-3 backdrop-blur-xl sm:px-8">
-      {/* Brand & Page Title */}
+      {/* Left Brand */}
       <div className="flex items-center gap-3 min-w-0">
         <Link
           href="/"
@@ -54,7 +56,7 @@ export function SiteHeader({ title }: SiteHeaderProps) {
         )}
       </div>
 
-      {/* Desktop Navigation Links */}
+      {/* Center Navigation Links */}
       <nav className="hidden md:flex items-center gap-1 rounded-full border border-cyan-500/15 bg-slate-950/60 p-1.5 backdrop-blur-md">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -74,8 +76,28 @@ export function SiteHeader({ title }: SiteHeaderProps) {
         })}
       </nav>
 
-      {/* Right Actions: Audio Toggle & Mobile Menu */}
+      {/* Right Actions: Command Palette, Audio Toggle, Settings & Mobile Menu */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsCommandPaletteOpen(true)}
+          aria-label="Open command palette"
+          className="hidden sm:flex h-9 items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-950/70 px-3 text-xs text-slate-400 hover:border-cyan-500/40 hover:text-cyan-300"
+        >
+          <span>🔍</span>
+          <span className="font-semibold">Search</span>
+          <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-500">⌘K</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label="Open settings customization panel"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/70 bg-slate-950/70 text-sm text-slate-300 transition-all hover:border-cyan-500/40 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+        >
+          ⚙️
+        </button>
+
         <button
           type="button"
           onClick={toggleAudio}
@@ -117,6 +139,16 @@ export function SiteHeader({ title }: SiteHeaderProps) {
                 </Link>
               );
             })}
+
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsCommandPaletteOpen(true);
+              }}
+              className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-900/60"
+            >
+              <span>🔍</span> Search Commands (Cmd+K)
+            </button>
           </nav>
         </div>
       )}

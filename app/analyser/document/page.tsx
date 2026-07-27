@@ -545,7 +545,7 @@ export default function DocumentAnalyserPage() {
                         >
                           {m.role === "assistant" && (
                             <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-cyan-300">
-                              Lanky Doc AI
+                              {streamingMessageId === m.id ? "Thinking live..." : "Lanky Doc AI"}
                             </div>
                           )}
                           <MarkdownRenderer>{m.content}</MarkdownRenderer>

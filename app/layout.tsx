@@ -3,6 +3,9 @@ import { Geist, Syne, Inter } from "next/font/google";
 import { RookAudioButton } from "@/components/rook-audio-button";
 import { ToastProvider } from "@/components/toast";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ThemeProvider } from "@/lib/theme-context";
+import { SettingsModal } from "@/components/settings-modal";
+import { CommandPalette } from "@/components/command-palette";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +26,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "lanky.lol | Tools for the Fools",
+  title: "lanky.lol | Tools & Arcade Suite 2026",
   description:
     "The lankiest, sleekest AI vision, document analysis, and browser arcade suite — engineered for lightning speed on desktop and mobile.",
 };
@@ -47,10 +50,14 @@ export default function RootLayout({
     >
       <body className="min-h-dvh antialiased font-[family-name:var(--font-inter)] bg-[#030712] text-slate-100">
         <ErrorBoundary>
-          <ToastProvider>
-            {children}
-            <RookAudioButton />
-          </ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              {children}
+              <SettingsModal />
+              <CommandPalette />
+              <RookAudioButton />
+            </ToastProvider>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>

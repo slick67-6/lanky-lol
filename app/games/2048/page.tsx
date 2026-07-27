@@ -125,7 +125,11 @@ export default function Game2048Page() {
   const { highScore, updateHighScore } = useHighScore("2048", 0);
 
   const initializeGrid = useCallback(() => {
-    const newGrid = createInitialGrid();
+    const newGrid = Array(GRID_SIZE)
+      .fill(0)
+      .map(() => Array(GRID_SIZE).fill(0));
+    addRandomTile(newGrid);
+    addRandomTile(newGrid);
     setGrid(newGrid);
     setHistory(null);
     setScore(0);

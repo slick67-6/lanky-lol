@@ -40,6 +40,9 @@ const BRICK_PADDING = 8;
 const BRICK_OFFSET_TOP = 40;
 const BRICK_OFFSET_LEFT = 12;
 
+const BASE_BALL_SPEED = 3.8;
+const MAX_BALL_SPEED = 5.2;
+
 const ROW_COLORS = ["#f43f5e", "#fb923c", "#fbbf24", "#34d399", "#22d3ee"];
 
 export default function BreakoutGamePage() {
@@ -56,7 +59,7 @@ export default function BreakoutGamePage() {
 
   const paddleRef = useRef({ x: 200, width: 90, height: 12 });
   const ballsRef = useRef<{ x: number; y: number; dx: number; dy: number; radius: number }[]>([
-    { x: 240, y: 350, dx: 4, dy: -4, radius: 7 },
+    { x: 240, y: 350, dx: 2.5, dy: -3.5, radius: 7 },
   ]);
   const bricksRef = useRef<Brick[]>([]);
   const powerUpsRef = useRef<PowerUp[]>([]);
@@ -86,8 +89,8 @@ export default function BreakoutGamePage() {
       particlesRef.current.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 5,
-        vy: (Math.random() - 0.5) * 5,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
         life: 1.0,
         color,
       });
@@ -156,7 +159,7 @@ export default function BreakoutGamePage() {
     const update = () => {
       if (!active) return;
 
-      const paddleSpeed = 8;
+      const paddleSpeed = 7;
       if (keysRef.current["ArrowLeft"] || keysRef.current["a"] || keysRef.current["A"]) {
         paddleRef.current.x = Math.max(0, paddleRef.current.x - paddleSpeed);
       }
@@ -176,7 +179,7 @@ export default function BreakoutGamePage() {
 
       powerUpsRef.current.forEach((pw) => {
         if (pw.active) {
-          pw.y += 2.5;
+          pw.y += 2.0;
           const paddleY = CANVAS_HEIGHT - paddleRef.current.height - 10;
           if (
             pw.y >= paddleY &&
@@ -186,12 +189,12 @@ export default function BreakoutGamePage() {
             pw.active = false;
             soundManager.playPowerup();
             if (pw.type === "expand") {
-              paddleRef.current.width = Math.min(150, paddleRef.current.width + 30);
+              paddleRef.current.width = Math.min(140, paddleRef.current.width + 25);
             } else if (pw.type === "extra-life") {
               setLives((l) => l + 1);
             } else if (pw.type === "multiball" && ballsRef.current.length > 0) {
               const b = ballsRef.current[0];
-              ballsRef.current.push({ x: b.x, y: b.y, dx: -b.dx, dy: b.dy, radius: b.radius });
+              ballsRef.current.push({ x: b.x, y: b.y, dx: -b.dx, dy: -Math.abs(b.dy), radius: b.radius });
             }
           }
         }
@@ -201,33 +204,47 @@ export default function BreakoutGamePage() {
         ball.x += ball.dx;
         ball.y += ball.dy;
 
-        if (ball.x + ball.radius > CANVAS_WIDTH || ball.x - ball.radius < 0) {
-          ball.dx = -ball.dx;
+        // Wall collisions
+        if (ball.x + ball.radius > CANVAS_WIDTH) {
+          ball.x = CANVAS_WIDTH - ball.radius;
+          ball.dx = -Math.abs(ball.dx);
           soundManager.playPop();
-        }
-        if (ball.y - ball.radius < 0) {
-          ball.dy = -ball.dy;
+        } else if (ball.x - ball.radius < 0) {
+          ball.x = ball.radius;
+          ball.dx = Math.abs(ball.dx);
           soundManager.playPop();
         }
 
+        if (ball.y - ball.radius < 0) {
+          ball.y = ball.radius;
+          ball.dy = Math.abs(ball.dy);
+          soundManager.playPop();
+        }
+
+        // Paddle Collision with Controlled Speed Rebound
         const paddleY = CANVAS_HEIGHT - paddleRef.current.height - 10;
         if (
           ball.dy > 0 &&
           ball.y + ball.radius >= paddleY &&
-          ball.x >= paddleRef.current.x &&
-          ball.x <= paddleRef.current.x + paddleRef.current.width
+          ball.y - ball.radius <= paddleY + paddleRef.current.height &&
+          ball.x >= paddleRef.current.x - 4 &&
+          ball.x <= paddleRef.current.x + paddleRef.current.width + 4
         ) {
           const hitOffset = (ball.x - (paddleRef.current.x + paddleRef.current.width / 2)) / (paddleRef.current.width / 2);
-          const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
-          const maxAngle = (5 * Math.PI) / 12;
+          const maxAngle = (5 * Math.PI) / 12; // 75 deg
           const bounceAngle = hitOffset * maxAngle;
 
-          ball.dx = speed * Math.sin(bounceAngle);
-          ball.dy = -speed * Math.cos(bounceAngle);
+          const currentSpeed = Math.min(MAX_BALL_SPEED, Math.max(BASE_BALL_SPEED, Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy)));
+
+          ball.dx = currentSpeed * Math.sin(bounceAngle);
+          ball.dy = -currentSpeed * Math.cos(bounceAngle);
+          ball.y = paddleY - ball.radius - 1;
+
           soundManager.playHit();
           setCombo(1);
         }
 
+        // Brick Collisions
         bricksRef.current.forEach((brick) => {
           if (brick.status) {
             if (
@@ -254,7 +271,7 @@ export default function BreakoutGamePage() {
                 return nextCombo;
               });
 
-              if (Math.random() < 0.25) {
+              if (Math.random() < 0.22) {
                 const types: ("expand" | "extra-life" | "multiball")[] = ["expand", "extra-life", "multiball"];
                 powerUpsRef.current.push({
                   x: brick.x + brick.width / 2,
@@ -268,7 +285,7 @@ export default function BreakoutGamePage() {
         });
       });
 
-      ballsRef.current = ballsRef.current.filter((b) => b.y - b.radius < CANVAS_HEIGHT);
+      ballsRef.current = ballsRef.current.filter((b) => b.y - b.radius < CANVAS_HEIGHT + 20);
 
       if (ballsRef.current.length === 0) {
         soundManager.playExplosion();
@@ -283,8 +300,8 @@ export default function BreakoutGamePage() {
               {
                 x: paddleRef.current.x + paddleRef.current.width / 2,
                 y: CANVAS_HEIGHT - 35,
-                dx: 4,
-                dy: -4,
+                dx: 2.5,
+                dy: -3.5,
                 radius: 7,
               },
             ];
@@ -342,7 +359,7 @@ export default function BreakoutGamePage() {
     setLives(3);
     setCombo(1);
     paddleRef.current = { x: 200, width: 90, height: 12 };
-    ballsRef.current = [{ x: 240, y: 350, dx: 4, dy: -4, radius: 7 }];
+    ballsRef.current = [{ x: 240, y: 350, dx: 2.5, dy: -3.5, radius: 7 }];
     powerUpsRef.current = [];
     particlesRef.current = [];
     initializeBricks();
