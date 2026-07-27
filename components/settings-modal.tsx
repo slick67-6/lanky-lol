@@ -1,249 +1,154 @@
 "use client";
 
-import { useTheme, ACCENT_PALETTES, AccentColor, BackgroundStyle, AppearanceMode, UiDensity, FontFamily } from "@/lib/theme-context";
-import { useState } from "react";
-import { useToast } from "@/components/toast";
+import { useTheme, ACCENT_PALETTES, AccentColor, AppearanceMode } from "@/lib/theme-context";
+import { useEffect } from "react";
+
+function X() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
 
 export function SettingsModal() {
-  const { settings, updateSettings, resetToDefaults, exportSettings, importSettings, isSettingsOpen, setIsSettingsOpen } = useTheme();
-  const { showToast } = useToast();
-  const [importString, setImportString] = useState("");
-  const [showImport, setShowImport] = useState(false);
+  const { settings, updateSettings, resetToDefaults, isSettingsOpen, setIsSettingsOpen } = useTheme();
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setIsSettingsOpen(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isSettingsOpen, setIsSettingsOpen]);
 
   if (!isSettingsOpen) return null;
 
-  const handleExport = () => {
-    const json = exportSettings();
-    navigator.clipboard.writeText(json);
-    showToast("Settings JSON copied to clipboard!", "success");
-  };
+  const APPEARANCES: { id: AppearanceMode; label: string; icon: string }[] = [
+    { id: "dark",   label: "Dark",   icon: "🌙" },
+    { id: "amoled", label: "AMOLED", icon: "⬛" },
+    { id: "light",  label: "Light",  icon: "☀️"  },
+    { id: "auto",   label: "Auto",   icon: "🔄" },
+  ];
 
-  const handleImportSubmit = () => {
-    const success = importSettings(importString);
-    if (success) {
-      showToast("Settings imported successfully!", "success");
-      setShowImport(false);
-      setImportString("");
-    } else {
-      showToast("Invalid JSON settings format.", "error");
-    }
-  };
+  const ACCENT_KEYS = Object.keys(ACCENT_PALETTES) as AccentColor[];
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-end bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="flex h-full w-full max-w-md flex-col border-l border-cyan-500/20 bg-slate-950 p-6 text-slate-100 shadow-2xl overflow-y-auto">
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[199] bg-black/40 backdrop-blur-sm"
+        onClick={() => setIsSettingsOpen(false)}
+        aria-hidden
+      />
+
+      {/* Panel — slides in from right */}
+      <div
+        role="dialog"
+        aria-modal
+        aria-label="Preferences"
+        className="fixed right-0 top-0 bottom-0 z-[200] flex w-full max-w-xs flex-col border-l border-white/[0.07] bg-[#0e0e0e] shadow-2xl"
+        style={{ animation: "panel-in 0.22s cubic-bezier(.16,1,.3,1) forwards" }}
+      >
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">⚙️</span>
-            <h2 className="text-lg font-bold text-cyan-100">Preferences & Customization</h2>
-          </div>
+        <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
+          <h2 className="text-sm font-semibold text-white/80">Preferences</h2>
           <button
             onClick={() => setIsSettingsOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 text-slate-400 hover:text-cyan-300"
+            aria-label="Close preferences"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-white/30 transition-colors hover:bg-white/[0.08] hover:text-white/70"
           >
-            ✕
+            <X />
           </button>
         </div>
 
-        <div className="flex flex-col gap-6">
-          {/* Appearance Mode */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+
+          {/* Theme */}
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Appearance Theme
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {(["dark", "amoled", "light", "auto"] as AppearanceMode[]).map((mode) => (
+            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Theme</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {APPEARANCES.map(({ id, label, icon }) => (
                 <button
-                  key={mode}
-                  onClick={() => updateSettings({ appearance: mode })}
-                  className={`rounded-xl border py-2 text-xs font-bold uppercase transition-all ${
-                    settings.appearance === mode
-                      ? "border-cyan-400 bg-cyan-950/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
+                  key={id}
+                  onClick={() => updateSettings({ appearance: id })}
+                  className={`flex flex-col items-center gap-1 rounded-xl border py-2.5 text-[0.65rem] font-semibold transition-all ${
+                    settings.appearance === id
+                      ? "border-white/30 bg-white/[0.1] text-white"
+                      : "border-white/[0.06] bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/70"
                   }`}
                 >
-                  {mode}
+                  <span>{icon}</span>
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Accent Color Palette */}
+          {/* Accent */}
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Accent Color
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(ACCENT_PALETTES) as AccentColor[]).map((key) => {
-                const palette = ACCENT_PALETTES[key as keyof typeof ACCENT_PALETTES];
+            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Accent colour</p>
+            <div className="flex flex-wrap gap-2">
+              {ACCENT_KEYS.map((key) => {
+                const p = ACCENT_PALETTES[key as keyof typeof ACCENT_PALETTES];
+                const isActive = settings.accentColor === key;
                 return (
                   <button
                     key={key}
                     onClick={() => updateSettings({ accentColor: key })}
-                    className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition-all ${
-                      settings.accentColor === key
-                        ? "border-cyan-400 bg-cyan-950/60 text-cyan-100 shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-                        : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
+                    title={p.label}
+                    aria-label={p.label}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
+                      isActive ? "border-white scale-110" : "border-transparent hover:border-white/30 hover:scale-105"
                     }`}
-                  >
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: palette.hex }} />
-                    <span className="capitalize">{key}</span>
-                  </button>
+                    style={{ backgroundColor: p.hex }}
+                  />
                 );
               })}
             </div>
           </div>
 
-          {/* Background Style */}
+          {/* Sound */}
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Background Style
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["particles", "grid", "aurora", "gradient", "minimal"] as BackgroundStyle[]).map((bg) => (
-                <button
-                  key={bg}
-                  onClick={() => updateSettings({ backgroundStyle: bg })}
-                  className={`rounded-xl border py-2 text-xs font-semibold uppercase transition-all ${
-                    settings.backgroundStyle === bg
-                      ? "border-cyan-400 bg-cyan-950/60 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
+            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Sound effects</p>
+            <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-white/60">Enable sounds</span>
+              <button
+                onClick={() => updateSettings({ soundEffectsEnabled: !settings.soundEffectsEnabled })}
+                className={`relative h-6 w-10 rounded-full transition-all duration-200 ${
+                  settings.soundEffectsEnabled ? "bg-white" : "bg-white/20"
+                }`}
+                aria-checked={settings.soundEffectsEnabled}
+                role="switch"
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-[#0e0e0e] shadow transition-all duration-200 ${
+                    settings.soundEffectsEnabled ? "left-[calc(100%-1.375rem)]" : "left-0.5"
                   }`}
-                >
-                  {bg}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Typography */}
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Font Family
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["inter", "geist", "syne"] as FontFamily[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => updateSettings({ fontFamily: f })}
-                  className={`rounded-xl border py-2 text-xs font-semibold capitalize transition-all ${
-                    settings.fontFamily === f
-                      ? "border-cyan-400 bg-cyan-950/60 text-cyan-200"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* UI Density */}
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              UI Density
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["compact", "comfortable", "spacious"] as UiDensity[]).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => updateSettings({ uiDensity: d })}
-                  className={`rounded-xl border py-2 text-xs font-semibold capitalize transition-all ${
-                    settings.uiDensity === d
-                      ? "border-cyan-400 bg-cyan-950/60 text-cyan-200"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Audio Sliders */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-            <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-cyan-300">
-              🔊 Audio Settings
-            </h3>
-            <div className="flex flex-col gap-3">
-              <div>
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>SFX Volume</span>
-                  <span>{Math.round(settings.soundVolume * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={settings.soundVolume}
-                  onChange={(e) => updateSettings({ soundVolume: parseFloat(e.target.value) })}
-                  className="w-full accent-cyan-400"
                 />
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                <span className="text-xs text-slate-300">Enable Sound Effects</span>
-                <button
-                  onClick={() => updateSettings({ soundEffectsEnabled: !settings.soundEffectsEnabled })}
-                  className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    settings.soundEffectsEnabled ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {settings.soundEffectsEnabled ? "ON" : "OFF"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Import / Export / Reset Actions */}
-          <div className="flex flex-col gap-2 pt-4 border-t border-slate-800">
-            <div className="flex gap-2">
-              <button
-                onClick={handleExport}
-                className="flex-1 rounded-xl border border-cyan-500/30 bg-cyan-950/40 py-2.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/50"
-              >
-                Export Settings
-              </button>
-              <button
-                onClick={() => setShowImport(!showImport)}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
-              >
-                Import Settings
               </button>
             </div>
-
-            {showImport && (
-              <div className="flex flex-col gap-2 pt-2">
-                <textarea
-                  value={importString}
-                  onChange={(e) => setImportString(e.target.value)}
-                  placeholder="Paste JSON settings string here..."
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
-                  rows={3}
-                />
-                <button
-                  onClick={handleImportSubmit}
-                  className="rounded-xl bg-cyan-500 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400"
-                >
-                  Apply Imported Settings
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                resetToDefaults();
-                showToast("Settings reset to defaults.", "info");
-              }}
-              className="mt-2 rounded-xl border border-rose-500/30 bg-rose-950/20 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-900/40"
-            >
-              Reset to Defaults
-            </button>
           </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-white/[0.07] px-5 py-4">
+          <button
+            onClick={resetToDefaults}
+            className="w-full rounded-xl border border-white/[0.07] py-2.5 text-xs font-semibold text-white/30 transition-colors hover:border-white/15 hover:text-white/60"
+          >
+            Reset to defaults
+          </button>
         </div>
       </div>
-    </div>
+
+      <style>{`
+        @keyframes panel-in {
+          from { transform: translateX(100%); opacity: 0.6; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+      `}</style>
+    </>
   );
 }

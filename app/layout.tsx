@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Syne, Inter } from "next/font/google";
-import { RookAudioButton } from "@/components/rook-audio-button";
+
 import { ToastProvider } from "@/components/toast";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -55,7 +55,7 @@ export default function RootLayout({
               {children}
               <SettingsModal />
               <CommandPalette />
-              <RookAudioButton />
+
             </ToastProvider>
           </ThemeProvider>
         </ErrorBoundary>
