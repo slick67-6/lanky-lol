@@ -466,8 +466,10 @@ export default function ChessPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="chess-page">
+    <>
+      {/* Particles behind everything — must be outside .chess-page to avoid the > * z-index override */}
       <ParticlesBackground />
+      <div className="chess-page">
       {/* Sliding piece overlay — rendered outside the board grid */}
       {slideAnim && (
         <div
@@ -585,18 +587,18 @@ export default function ChessPage() {
 
       {/* ── All CSS inlined for isolation ─────────────────────────────────── */}
       <style>{`
-        /* Page — transparent so ParticlesBackground shows through */
+        /* Page — sits above particles canvas (which is fixed z-0 outside this div) */
         .chess-page {
           min-height: 100dvh;
-          background: transparent;
+          background: #080b12;
           color: #fff;
           font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
           display: flex;
           flex-direction: column;
           -webkit-font-smoothing: antialiased;
           position: relative;
+          z-index: 1;
         }
-        .chess-page > * { position:relative; z-index:1; }
 
         /* ── Sliding overlay ─────────────────────────────────────────────── */
         .chess-slide-overlay {
@@ -916,5 +918,6 @@ export default function ChessPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }
