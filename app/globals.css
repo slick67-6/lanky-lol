@@ -1,20 +1,51 @@
 @import "tailwindcss";
 
-:root {
-  --bg-deep: #030712;
-  --accent-primary: rgba(255,255,255,0.9);
+/* ── CSS Design Tokens ─────────────────────────────────────────────────────── */
+:root,
+html.theme-dark {
+  --bg:            #030712;
+  --bg-surface:    rgba(255,255,255,0.04);
+  --bg-surface-hv: rgba(255,255,255,0.07);
+  --border-col:    rgba(255,255,255,0.08);
+  --border-hv:     rgba(255,255,255,0.16);
+  --fg:            rgba(255,255,255,0.88);
+  --fg-muted:      rgba(255,255,255,0.38);
+  --fg-faint:      rgba(255,255,255,0.15);
+  --accent-primary: #22d3ee;
+}
+
+html.theme-amoled {
+  --bg:            #000000;
+  --bg-surface:    rgba(255,255,255,0.03);
+  --bg-surface-hv: rgba(255,255,255,0.06);
+  --border-col:    rgba(255,255,255,0.06);
+  --border-hv:     rgba(255,255,255,0.13);
+  --fg:            rgba(255,255,255,0.9);
+  --fg-muted:      rgba(255,255,255,0.35);
+  --fg-faint:      rgba(255,255,255,0.12);
+}
+
+html.theme-light {
+  --bg:            #f1f5f9;
+  --bg-surface:    rgba(0,0,0,0.04);
+  --bg-surface-hv: rgba(0,0,0,0.07);
+  --border-col:    rgba(0,0,0,0.1);
+  --border-hv:     rgba(0,0,0,0.2);
+  --fg:            rgba(0,0,0,0.85);
+  --fg-muted:      rgba(0,0,0,0.48);
+  --fg-faint:      rgba(0,0,0,0.18);
 }
 
 @theme inline {
-  --color-background: var(--bg-deep);
-  --color-foreground: #f8fafc;
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
   --font-display: var(--font-syne);
-  --font-sans: var(--font-inter);
+  --font-sans:    var(--font-inter);
 }
 
 html {
   height: 100%;
-  background: var(--bg-deep);
+  background: var(--bg);
   overflow-x: hidden;
   overscroll-behavior-y: auto;
 }
@@ -22,18 +53,19 @@ html {
 body {
   min-height: 100dvh;
   margin: 0;
-  background: var(--bg-deep);
-  color: #f8fafc;
+  background: var(--bg);
+  color: var(--fg);
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   line-height: 1.6;
   overflow-x: hidden;
   overscroll-behavior-y: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 :focus-visible {
-  outline: 2px solid rgba(255,255,255,0.4);
+  outline: 2px solid var(--accent-primary);
   outline-offset: 3px;
   border-radius: 8px;
 }
@@ -42,28 +74,48 @@ button, input, textarea { line-height: 1.5; }
 p, li, label, a, strong, em, code { line-height: 1.55; }
 h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; padding-block: 0.1em; }
 
-#__next, body > * { background: var(--bg-deep); }
+#__next, body > * { background: transparent; }
 
-::selection { background: rgba(255,255,255,0.2); color: #fff; }
+::selection { background: color-mix(in srgb, var(--accent-primary) 30%, transparent); color: #fff; }
 
-/* ── Animations ──────────────────────────────────────────────────────── */
+/* ── Accent utility ──────────────────────────────────────────────────────── */
+.accent-bg     { background-color: var(--accent-primary) !important; }
+.accent-border { border-color: var(--accent-primary) !important; }
+.accent-text   { color: var(--accent-primary) !important; }
+.accent-glow   { box-shadow: 0 0 20px color-mix(in srgb, var(--accent-primary) 30%, transparent); }
+.accent-ring:focus-visible { outline-color: var(--accent-primary); }
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.animate-slide-up  { animation: slide-up 0.3s cubic-bezier(.16,1,.3,1) forwards; }
-.animate-fade-in   { animation: fade-in  0.22s ease-out forwards; }
+.animate-slide-up  { animation: slide-up 0.5s cubic-bezier(.16,1,.3,1) both; }
+.animate-fade-in   { animation: fade-in  0.4s ease-out both; }
+.animate-scale-in  { animation: scale-in 0.45s cubic-bezier(.16,1,.3,1) both; }
 
-/* ── Scrollbars ──────────────────────────────────────────────────────── */
+/* Stagger helpers */
+.anim-delay-0   { animation-delay:   0ms; }
+.anim-delay-1   { animation-delay:  80ms; }
+.anim-delay-2   { animation-delay: 160ms; }
+.anim-delay-3   { animation-delay: 240ms; }
+.anim-delay-4   { animation-delay: 320ms; }
+.anim-delay-5   { animation-delay: 400ms; }
+.anim-delay-6   { animation-delay: 480ms; }
+.anim-delay-7   { animation-delay: 560ms; }
+.anim-delay-8   { animation-delay: 640ms; }
+.anim-delay-9   { animation-delay: 720ms; }
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
 * {
   scrollbar-color: rgba(255,255,255,0.12) transparent;
   scrollbar-width: thin;

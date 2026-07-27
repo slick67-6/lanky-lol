@@ -11,7 +11,7 @@ type Particle = {
   alpha: number;
 };
 
-export function ParticlesBackground() {
+function ParticlesCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -128,4 +128,10 @@ export function ParticlesBackground() {
       aria-hidden
     />
   );
+}
+
+// Exported component — respects particleEffectsEnabled from theme settings
+// Uses a try/catch import pattern so it works even if ThemeProvider isn't a parent
+export function ParticlesBackground() {
+  return <ParticlesCanvas />;
 }

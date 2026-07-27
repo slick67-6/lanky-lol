@@ -71,6 +71,15 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function hexToRgb(hex: string): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return "34, 211, 238";
+  return `${r}, ${g}, ${b}`;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<ThemeSettings>(() => {
     if (typeof window === "undefined") return DEFAULT_SETTINGS;
@@ -112,10 +121,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     // Accent Colors
     let accentHex = s.customAccentHex || "#22d3ee";
-    if (s.accentColor !== "custom") {
-      accentHex = ACCENT_PALETTES[s.accentColor]?.hex || "#22d3ee";
+    const accentPalette = ACCENT_PALETTES[s.accentColor as keyof typeof ACCENT_PALETTES];
+    if (s.accentColor !== "custom" && accentPalette) {
+      accentHex = accentPalette.hex;
     }
     root.style.setProperty("--accent-primary", accentHex);
+    // Also expose RGB components for rgba() usage
+    const rgb = s.accentColor !== "custom" && accentPalette
+      ? accentPalette.rgb
+      : hexToRgb(accentHex);
+    root.style.setProperty("--accent-primary-rgb", rgb);
+
+    // Apply density class
+    root.classList.remove("density-compact", "density-comfortable", "density-spacious");
+    root.classList.add(`density-${s.uiDensity}`);
+
+    // Reduced motion
+    if (s.reducedMotion) {
+      root.style.setProperty("--animation-duration", "0.01ms");
+    } else {
+      const durMap = { slow: "1.5", normal: "1", fast: "0.5", none: "0.01" };
+      root.style.setProperty("--animation-duration-factor", durMap[s.animationSpeed] || "1");
+      root.style.removeProperty("--animation-duration");
+    }
 
     // Audio volume sync
     if (s.soundEffectsEnabled) {

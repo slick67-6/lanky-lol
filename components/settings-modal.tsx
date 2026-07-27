@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme, ACCENT_PALETTES, AccentColor, AppearanceMode } from "@/lib/theme-context";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 function X() {
   return (
@@ -11,8 +11,31 @@ function X() {
   );
 }
 
+interface ToggleProps {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  accent?: string;
+}
+function Toggle({ on, onChange, accent }: ToggleProps) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="relative h-6 w-11 flex-shrink-0 rounded-full transition-all duration-200"
+      style={{ background: on ? (accent || "var(--accent-primary)") : "rgba(255,255,255,0.15)" }}
+    >
+      <span
+        className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200"
+        style={{ left: on ? "calc(100% - 1.375rem)" : "0.125rem" }}
+      />
+    </button>
+  );
+}
+
 export function SettingsModal() {
   const { settings, updateSettings, resetToDefaults, isSettingsOpen, setIsSettingsOpen } = useTheme();
+  const volRef = useRef<HTMLInputElement>(null);
 
   // Close on Escape
   useEffect(() => {
@@ -24,35 +47,45 @@ export function SettingsModal() {
 
   if (!isSettingsOpen) return null;
 
-  const APPEARANCES: { id: AppearanceMode; label: string; icon: string }[] = [
-    { id: "dark",   label: "Dark",   icon: "🌙" },
-    { id: "amoled", label: "AMOLED", icon: "⬛" },
-    { id: "light",  label: "Light",  icon: "☀️"  },
-    { id: "auto",   label: "Auto",   icon: "🔄" },
+  const APPEARANCES: { id: AppearanceMode; label: string; preview: string }[] = [
+    { id: "dark",   label: "Dark",   preview: "#030712" },
+    { id: "amoled", label: "AMOLED", preview: "#000000" },
+    { id: "light",  label: "Light",  preview: "#f1f5f9" },
+    { id: "auto",   label: "Auto",   preview: "#111827" },
   ];
 
   const ACCENT_KEYS = Object.keys(ACCENT_PALETTES) as AccentColor[];
+  const accentHex = settings.accentColor !== "custom"
+    ? ACCENT_PALETTES[settings.accentColor as keyof typeof ACCENT_PALETTES]?.hex
+    : settings.customAccentHex;
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — intentionally very light so dark pages aren't swallowed */}
       <div
-        className="fixed inset-0 z-[199] bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[199] backdrop-blur-[2px]"
+        style={{ background: "rgba(0,0,0,0.22)" }}
         onClick={() => setIsSettingsOpen(false)}
         aria-hidden
       />
 
-      {/* Panel — slides in from right */}
+      {/* Panel */}
       <div
         role="dialog"
         aria-modal
         aria-label="Preferences"
-        className="fixed right-0 top-0 bottom-0 z-[200] flex w-full max-w-xs flex-col border-l border-white/[0.07] bg-[#0e0e0e] shadow-2xl"
+        className="fixed right-0 top-0 bottom-0 z-[200] flex w-full max-w-[300px] flex-col border-l border-white/[0.08] bg-[#0d0d0f] shadow-2xl"
         style={{ animation: "panel-in 0.22s cubic-bezier(.16,1,.3,1) forwards" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
-          <h2 className="text-sm font-semibold text-white/80">Preferences</h2>
+          <div className="flex items-center gap-2">
+            <div
+              className="h-2 w-2 rounded-full"
+              style={{ background: "var(--accent-primary)", boxShadow: `0 0 8px var(--accent-primary)` }}
+            />
+            <h2 className="text-sm font-semibold text-white/80">Preferences</h2>
+          </div>
           <button
             onClick={() => setIsSettingsOpen(false)}
             aria-label="Close preferences"
@@ -62,35 +95,42 @@ export function SettingsModal() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-7">
 
-          {/* Theme */}
-          <div>
-            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Theme</p>
+          {/* ── Appearance ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Appearance</p>
             <div className="grid grid-cols-4 gap-1.5">
-              {APPEARANCES.map(({ id, label, icon }) => (
-                <button
-                  key={id}
-                  onClick={() => updateSettings({ appearance: id })}
-                  className={`flex flex-col items-center gap-1 rounded-xl border py-2.5 text-[0.65rem] font-semibold transition-all ${
-                    settings.appearance === id
-                      ? "border-white/30 bg-white/[0.1] text-white"
-                      : "border-white/[0.06] bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/70"
-                  }`}
-                >
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
+              {APPEARANCES.map(({ id, label, preview }) => {
+                const isActive = settings.appearance === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => updateSettings({ appearance: id })}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border py-2.5 text-[0.62rem] font-semibold transition-all"
+                    style={{
+                      borderColor: isActive ? "var(--accent-primary)" : "rgba(255,255,255,0.06)",
+                      background:  isActive ? `rgba(var(--accent-primary-rgb, 34,211,238), 0.1)` : "rgba(255,255,255,0.03)",
+                      color:       isActive ? "var(--accent-primary)" : "rgba(255,255,255,0.4)",
+                    }}
+                  >
+                    <span
+                      className="h-5 w-5 rounded-full border border-white/10"
+                      style={{ background: preview }}
+                    />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </section>
 
-          {/* Accent */}
-          <div>
-            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Accent colour</p>
-            <div className="flex flex-wrap gap-2">
+          {/* ── Accent colour ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Accent colour</p>
+            <div className="flex flex-wrap gap-2.5">
               {ACCENT_KEYS.map((key) => {
-                const p = ACCENT_PALETTES[key as keyof typeof ACCENT_PALETTES];
+                const p        = ACCENT_PALETTES[key as keyof typeof ACCENT_PALETTES];
                 const isActive = settings.accentColor === key;
                 return (
                   <button
@@ -98,37 +138,99 @@ export function SettingsModal() {
                     onClick={() => updateSettings({ accentColor: key })}
                     title={p.label}
                     aria-label={p.label}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
-                      isActive ? "border-white scale-110" : "border-transparent hover:border-white/30 hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: p.hex }}
-                  />
+                    className="relative flex h-8 w-8 items-center justify-center rounded-full transition-all duration-150"
+                    style={{
+                      backgroundColor: p.hex,
+                      transform:  isActive ? "scale(1.18)" : "scale(1)",
+                      boxShadow:  isActive ? `0 0 0 2px #0d0d0f, 0 0 0 4px ${p.hex}` : "none",
+                    }}
+                  >
+                    {isActive && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Sound */}
-          <div>
-            <p className="mb-2.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-white/25">Sound effects</p>
-            <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
-              <span className="text-sm text-white/60">Enable sounds</span>
-              <button
-                onClick={() => updateSettings({ soundEffectsEnabled: !settings.soundEffectsEnabled })}
-                className={`relative h-6 w-10 rounded-full transition-all duration-200 ${
-                  settings.soundEffectsEnabled ? "bg-white" : "bg-white/20"
-                }`}
-                aria-checked={settings.soundEffectsEnabled}
-                role="switch"
+              {/* Custom hex input */}
+              <label
+                className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-white/20 transition-all hover:border-white/40"
+                title="Custom colour"
+                style={{
+                  background: settings.accentColor === "custom" ? settings.customAccentHex : "transparent",
+                  boxShadow: settings.accentColor === "custom" ? `0 0 0 2px #0d0d0f, 0 0 0 4px ${settings.customAccentHex}` : "none",
+                  transform:  settings.accentColor === "custom" ? "scale(1.18)" : "scale(1)",
+                }}
               >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-[#0e0e0e] shadow transition-all duration-200 ${
-                    settings.soundEffectsEnabled ? "left-[calc(100%-1.375rem)]" : "left-0.5"
-                  }`}
+                <span className="text-[0.7rem] text-white/50">{settings.accentColor === "custom" ? "" : "+"}</span>
+                <input
+                  type="color"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  value={settings.customAccentHex}
+                  onChange={(e) => updateSettings({ accentColor: "custom", customAccentHex: e.target.value })}
                 />
-              </button>
+              </label>
             </div>
-          </div>
+            <p className="mt-2 text-[0.6rem] text-white/25">
+              Selected: <span style={{ color: accentHex }}>{accentHex}</span>
+            </p>
+          </section>
+
+          {/* ── Sound ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Sound</p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+                <span className="text-xs text-white/60">Sound effects</span>
+                <Toggle
+                  on={settings.soundEffectsEnabled}
+                  onChange={(v) => updateSettings({ soundEffectsEnabled: v })}
+                />
+              </div>
+              {settings.soundEffectsEnabled && (
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-xs text-white/60">Volume</span>
+                    <span className="text-[0.65rem] text-white/35">{Math.round(settings.soundVolume * 100)}%</span>
+                  </div>
+                  <input
+                    ref={volRef}
+                    type="range"
+                    min={0} max={1} step={0.05}
+                    value={settings.soundVolume}
+                    onChange={(e) => updateSettings({ soundVolume: parseFloat(e.target.value) })}
+                    className="w-full accent-slider"
+                    style={{ accentColor: "var(--accent-primary)" }}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ── Particles ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Background</p>
+            <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+              <span className="text-xs text-white/60">Particle effects</span>
+              <Toggle
+                on={settings.particleEffectsEnabled}
+                onChange={(v) => updateSettings({ particleEffectsEnabled: v })}
+              />
+            </div>
+          </section>
+
+          {/* ── Motion ── */}
+          <section>
+            <p className="mb-2.5 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white/25">Motion</p>
+            <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5">
+              <span className="text-xs text-white/60">Reduce motion</span>
+              <Toggle
+                on={settings.reducedMotion}
+                onChange={(v) => updateSettings({ reducedMotion: v })}
+              />
+            </div>
+          </section>
 
         </div>
 
@@ -145,8 +247,8 @@ export function SettingsModal() {
 
       <style>{`
         @keyframes panel-in {
-          from { transform: translateX(100%); opacity: 0.6; }
-          to   { transform: translateX(0);    opacity: 1; }
+          from { transform: translateX(100%); opacity: 0.7; }
+          to   { transform: translateX(0);    opacity: 1;   }
         }
       `}</style>
     </>
