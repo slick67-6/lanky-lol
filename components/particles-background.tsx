@@ -66,8 +66,8 @@ export function ParticlesBackground() {
         h * 0.35,
         Math.max(w, h) * 0.75,
       );
-      grad.addColorStop(0, "rgba(8, 47, 73, 0.45)");
-      grad.addColorStop(0.5, "rgba(3, 7, 18, 0.2)");
+      grad.addColorStop(0, "rgba(255, 255, 255, 0.02)");
+      grad.addColorStop(0.5, "rgba(3, 7, 18, 0.1)");
       grad.addColorStop(1, "rgba(3, 7, 18, 0)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, w, h);
@@ -84,7 +84,7 @@ export function ParticlesBackground() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(34, 211, 238, ${p.alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha * 0.65})`;
         ctx.fill();
       }
 
@@ -96,8 +96,8 @@ export function ParticlesBackground() {
           const dy = a.y - b.y;
           const dist = Math.hypot(dx, dy);
           if (dist < 110) {
-            ctx.strokeStyle = `rgba(34, 211, 238, ${0.12 * (1 - dist / 110)})`;
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.07 * (1 - dist / 110)})`;
+            ctx.lineWidth = 0.4;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);

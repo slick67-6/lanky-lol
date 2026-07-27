@@ -368,10 +368,10 @@ export default function DocumentAnalyserPage() {
           <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
             <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[1fr_1.2fr]">
               <div className="text-center lg:text-left">
-                <span className="mb-2 inline-block rounded-full border border-cyan-500/30 bg-cyan-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                  Multimodal Workspace
+                <span className="mb-2 inline-block rounded-full border border-white/[0.1] bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Document Workspace
                 </span>
-                <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
+                <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-white sm:text-4xl">
                   AI Document Workspace
                 </h1>
                 <p className="text-sm leading-relaxed text-slate-400 sm:text-base">
@@ -379,8 +379,8 @@ export default function DocumentAnalyserPage() {
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/75 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-                <div className="mb-6 rounded-2xl border-2 border-dashed border-cyan-500/30 bg-slate-950/50 p-8 text-center transition-colors hover:border-cyan-400/50">
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+                <div className="mb-6 rounded-2xl border-2 border-dashed border-white/[0.1] bg-white/[0.02] p-8 text-center transition-colors hover:border-white/[0.2]">
                   <input
                     ref={fileRef}
                     type="file"
@@ -397,20 +397,20 @@ export default function DocumentAnalyserPage() {
                     onClick={() => fileRef.current?.click()}
                     className="flex flex-col items-center gap-3 w-full"
                   >
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-950/60 text-cyan-300 border border-cyan-500/30">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.06] text-3xl border border-white/[0.09]">
                       📄
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-cyan-100">Click or drag & drop document</p>
+                      <p className="text-base font-semibold text-white/80">Click or drag & drop document</p>
                       <p className="text-xs text-slate-400">PDF, DOCX, PPTX, TXT (Max 25MB)</p>
                     </div>
                   </button>
                 </div>
 
                 {pendingFile && (
-                  <div className="mb-6 flex items-center justify-between rounded-xl border border-cyan-500/30 bg-slate-950/80 p-4">
+                  <div className="mb-6 flex items-center justify-between rounded-xl border border-white/[0.1] bg-white/[0.04] p-4">
                     <div className="truncate text-left">
-                      <p className="text-sm font-semibold text-cyan-200 truncate">{pendingFile.name}</p>
+                      <p className="text-sm font-semibold text-white/80 truncate">{pendingFile.name}</p>
                       <p className="text-xs text-slate-400">{(pendingFile.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                     <button
@@ -427,7 +427,7 @@ export default function DocumentAnalyserPage() {
                 <button
                   onClick={processDocument}
                   disabled={!pendingFile || loading}
-                  className="w-full rounded-2xl bg-cyan-500 py-3.5 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 disabled:opacity-40"
+                  className="w-full rounded-2xl bg-white py-3.5 text-base font-bold text-[#030712] shadow-[0_2px_16px_rgba(255,255,255,0.15)] transition-all hover:bg-white/90 disabled:opacity-40"
                 >
                   Analyse Document
                 </button>
@@ -438,12 +438,12 @@ export default function DocumentAnalyserPage() {
 
         {showLoadingScreen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 px-4 backdrop-blur-md">
-            <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-950 p-8 text-center shadow-2xl">
-              <div className="mb-4 h-12 w-12 mx-auto animate-spin rounded-full border-4 border-cyan-500/20 border-t-cyan-400" />
-              <h3 className="mb-2 text-lg font-bold text-cyan-100">{loadingMessage}</h3>
+            <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0e0e0e] p-8 text-center shadow-2xl backdrop-blur-xl">
+              <div className="mb-4 h-12 w-12 mx-auto animate-spin rounded-full border-4 border-white/10 border-t-white/70" />
+              <h3 className="mb-2 text-lg font-bold text-white/90">{loadingMessage}</h3>
               <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-900">
                 <div
-                  className="h-full bg-cyan-400 transition-all duration-300"
+                  className="h-full bg-white transition-all duration-300"
                   style={{ width: `${loadingProgress}%` }}
                 />
               </div>
@@ -462,16 +462,16 @@ export default function DocumentAnalyserPage() {
         <SiteHeader title="AI Document Workspace" />
 
         {/* Tab Navbar */}
-        <div className="border-b border-cyan-500/20 bg-slate-950/90 px-4 py-2 backdrop-blur-xl sm:px-6">
+        <div className="border-b border-white/[0.07] bg-[#030712]/95 px-4 py-2 backdrop-blur-xl sm:px-6">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
             <button
               onClick={() => setView("landing")}
-              className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/50"
+              className="rounded-xl border border-white/[0.09] bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/50 hover:bg-white/[0.08] transition-all"
             >
               ← Change File
             </button>
 
-            <span className="truncate text-xs font-semibold text-slate-400 max-w-xs">{documentName}</span>
+            <span className="truncate text-xs font-semibold text-white/30 max-w-xs">{documentName}</span>
 
             <div className="flex gap-1">
               {[
@@ -485,8 +485,8 @@ export default function DocumentAnalyserPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                     activeTab === tab.id
-                      ? "bg-cyan-500 text-slate-950"
-                      : "text-slate-400 hover:text-cyan-200 hover:bg-cyan-950/40"
+                      ? "bg-white text-[#030712]"
+                      : "text-white/40 hover:text-white/70 hover:bg-white/[0.07]"
                   }`}
                 >
                   {tab.label}
@@ -500,22 +500,22 @@ export default function DocumentAnalyserPage() {
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
           <div className="mx-auto max-w-5xl">
             {activeTab === "notes" && (
-              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-cyan-100">Key Study Notes</h2>
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-white/80">Key Study Notes</h2>
                 <MarkdownRenderer>{generatedAnalysis?.notes || ""}</MarkdownRenderer>
               </div>
             )}
 
             {activeTab === "answers" && (
-              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-cyan-100">Q&A Insights</h2>
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-white/80">Q&amp;A Insights</h2>
                 <MarkdownRenderer>{generatedAnalysis?.answers || ""}</MarkdownRenderer>
               </div>
             )}
 
             {activeTab === "quiz" && (
-              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-cyan-100">Generated Quiz</h2>
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-white/80">Generated Quiz</h2>
                 <MarkdownRenderer>{generatedAnalysis?.quiz || ""}</MarkdownRenderer>
               </div>
             )}
@@ -539,13 +539,13 @@ export default function DocumentAnalyserPage() {
                         <div
                           className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
                             m.role === "user"
-                              ? "border border-cyan-400/30 bg-cyan-500/15 text-cyan-50"
-                              : "border border-slate-700/80 bg-slate-950/80 text-slate-200 backdrop-blur-xl"
+                              ? "border border-white/[0.12] bg-white/[0.07] text-white"
+                              : "border border-white/[0.08] bg-white/[0.03] text-white/80 backdrop-blur-xl"
                           }`}
                         >
                           {m.role === "assistant" && (
-                            <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-cyan-300">
-                              {streamingMessageId === m.id ? "Thinking live..." : "Lanky Doc AI"}
+                            <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-white/35">
+                              {streamingMessageId === m.id ? "Thinking…" : "Lanky Doc AI"}
                             </div>
                           )}
                           <MarkdownRenderer>{m.content}</MarkdownRenderer>
@@ -568,12 +568,12 @@ export default function DocumentAnalyserPage() {
                     }}
                     rows={1}
                     placeholder="Ask a question about the document..."
-                    className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
+                    className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-white/25 focus:outline-none"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!input.trim() || loading}
-                    className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-500 px-6 text-sm font-bold text-slate-950 transition-all hover:bg-cyan-400 disabled:opacity-40"
+                    className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-[#030712] transition-all hover:bg-white/90 disabled:opacity-40"
                   >
                     Send
                   </button>

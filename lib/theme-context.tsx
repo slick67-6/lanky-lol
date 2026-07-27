@@ -90,27 +90,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
 
-    // Appearance mode classes
+    // Appearance mode classes — do NOT set inline background, each page owns its own bg
     root.classList.remove("theme-dark", "theme-light", "theme-amoled");
+    root.style.removeProperty("background-color");
     if (s.appearance === "amoled") {
       root.classList.add("dark", "theme-amoled");
-      root.style.backgroundColor = "#000000";
     } else if (s.appearance === "light") {
       root.classList.remove("dark");
       root.classList.add("theme-light");
-      root.style.backgroundColor = "#f8fafc";
     } else if (s.appearance === "dark") {
       root.classList.add("dark", "theme-dark");
-      root.style.backgroundColor = "#030712";
     } else {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       if (prefersDark) {
         root.classList.add("dark", "theme-dark");
-        root.style.backgroundColor = "#030712";
       } else {
         root.classList.remove("dark");
         root.classList.add("theme-light");
-        root.style.backgroundColor = "#f8fafc";
       }
     }
 

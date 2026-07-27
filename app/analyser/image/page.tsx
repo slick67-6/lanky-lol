@@ -337,13 +337,13 @@ export default function ImageAnalyserPage() {
                 <div
                   className={`relative max-w-[92%] sm:max-w-[85%] rounded-3xl px-4 py-3.5 text-sm leading-relaxed shadow-2xl transition-all ${
                     m.role === "user"
-                      ? "border border-cyan-400/30 bg-cyan-500/15 text-cyan-50 shadow-cyan-950/30"
-                      : "border border-slate-700/80 bg-slate-950/80 text-slate-200 shadow-slate-950/60 backdrop-blur-xl"
+                      ? "border border-white/[0.12] bg-white/[0.07] text-white shadow-black/30"
+                      : "border border-white/[0.09] bg-white/[0.04] text-white/80 shadow-black/60 backdrop-blur-xl"
                   }`}
                 >
                   {m.role === "assistant" && (
-                    <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-cyan-300">
-                      <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+                    <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-white/35">
+                      <span className="h-2 w-2 rounded-full bg-white/50" />
                       {streamingMessageId === m.id ? "Thinking live..." : "Lanky Vision AI"}
                     </div>
                   )}
@@ -369,11 +369,11 @@ export default function ImageAnalyserPage() {
             {loading && !streamingMessageId && (
               <div className="flex justify-start">
                 <div className="rounded-3xl border border-slate-700/80 bg-slate-950/80 px-5 py-3.5 text-sm text-slate-400 shadow-xl backdrop-blur-xl">
-                  <div className="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-cyan-300">Analyzing Image</div>
+                  <div className="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-white/35">Analyzing Image</div>
                   <span className="inline-flex gap-1.5">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:150ms]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:300ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-white/50" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
                   </span>
                 </div>
               </div>
@@ -393,7 +393,7 @@ export default function ImageAnalyserPage() {
             <img
               src={pendingImage}
               alt="Pending upload"
-              className="h-16 w-16 rounded-xl border border-cyan-500/40 object-cover"
+              className="h-16 w-16 rounded-xl border border-white/20 object-cover"
             />
             <button
               type="button"
@@ -406,7 +406,7 @@ export default function ImageAnalyserPage() {
         )}
 
         {/* Input Bar */}
-        <div className="relative z-10 shrink-0 border-t border-cyan-500/20 bg-[#030712]/95 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <div className="relative z-10 shrink-0 border-t border-white/[0.07] bg-[#030712]/95 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="mx-auto mb-3 flex max-w-3xl gap-2 overflow-x-auto pb-1">
             {PROMPT_SUGGESTIONS.map((suggestion) => (
               <button
@@ -414,7 +414,7 @@ export default function ImageAnalyserPage() {
                 type="button"
                 onClick={() => setInput(suggestion)}
                 disabled={loading}
-                className="shrink-0 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400/50 hover:bg-cyan-400/20 disabled:opacity-40"
+                className="shrink-0 rounded-full border border-white/[0.09] bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-white/50 transition hover:border-white/20 hover:bg-white/[0.08] disabled:opacity-40"
               >
                 {suggestion}
               </button>
@@ -437,7 +437,7 @@ export default function ImageAnalyserPage() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-950/50 text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/[0.1] bg-white/[0.05] text-white/50 transition-all hover:border-white/25 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
               aria-label="Attach image"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -457,15 +457,15 @@ export default function ImageAnalyserPage() {
               }}
               rows={1}
               placeholder={loading ? "Generating response..." : "Ask a question or paste an image..."}
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 sm:text-base"
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 sm:text-base"
             />
 
             <button
               type="button"
               onClick={loading ? stopResponse : send}
               disabled={!loading && !input.trim() && !pendingImage}
-              className={`flex h-11 shrink-0 items-center justify-center rounded-2xl px-6 text-sm font-bold text-slate-950 transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-                loading ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-cyan-400 hover:bg-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+              className={`flex h-11 shrink-0 items-center justify-center rounded-2xl px-6 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                loading ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-white text-[#030712] hover:bg-white/90 shadow-[0_2px_12px_rgba(255,255,255,0.15)]"
               }`}
             >
               {loading ? "Stop" : "Send"}
