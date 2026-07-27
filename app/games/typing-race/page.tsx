@@ -1,176 +1,213 @@
 "use client";
 
-import { ParticlesBackground } from "@/components/particles-background";
-import { GamesBackLink } from "@/components/games-back-link";
-import { SiteHeader } from "@/components/site-header";
-import { useState, useEffect, useRef } from "react";
+import { GameShell } from "@/components/game-shell";
+import { soundManager } from "@/lib/audio";
+import { useHighScore } from "@/lib/use-high-score";
+import { useState, useRef } from "react";
 
-const SAMPLE_TEXTS = [
-  "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet at least once.",
-  "Programming is the art of telling another human what one wants the computer to do. It requires patience, logic, and creativity.",
-  "In computer science, artificial intelligence is intelligence demonstrated by machines, as opposed to natural intelligence displayed by humans.",
-  "The best way to predict the future is to invent it. Innovation comes from curiosity and the willingness to challenge assumptions.",
-  "Technology is best when it brings people together. The most impactful tools connect communities and enable collaboration across borders.",
-  "Space exploration has led to countless innovations that benefit life on Earth, from satellite communications to medical imaging technologies.",
-  "Learning to code is like learning a new language. It opens doors to understanding how the digital world around us operates.",
-  "The internet has transformed how we communicate, learn, and work. It connects billions of people across the globe in real time.",
-  "Mathematics is the language of the universe. Every scientific discovery rests on a foundation of mathematical principles and logic.",
-  "Reading expands your mind. Every book you finish adds a new perspective, vocabulary, and understanding of the world around you.",
-  "A journey of a thousand miles begins with a single step. Consistency and persistence matter more than raw talent or speed.",
-  "Great achievements are rarely the work of a single person. Collaboration, teamwork, and shared vision drive meaningful innovation.",
-];
+type TextCategory = "quotes" | "tech" | "code";
+
+const TEXT_DATA: Record<TextCategory, string[]> = {
+  quotes: [
+    "The quick brown fox jumps over the lazy dog. Persistence and practice make perfection in every craft.",
+    "A journey of a thousand miles begins with a single step. Focus on consistency over raw speed.",
+    "Reading expands your mind. Every book adds a new perspective and vocabulary to your thoughts.",
+  ],
+  tech: [
+    "In computer science, artificial intelligence is intelligence demonstrated by software algorithms and machines.",
+    "The internet connects billions of devices worldwide through scalable protocol suites and server infrastructure.",
+    "Programming is the art of telling a computer what tasks to solve using precise mathematical logic.",
+  ],
+  code: [
+    "const result = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: text }) });",
+    "function calculateWpm(chars: number, timeSec: number) { return Math.round((chars / 5) / (timeSec / 60)); }",
+    "export default function App() { const [score, setScore] = useState(0); return <main>{score}</main>; }",
+  ],
+};
+
+function getRandomText(cat: TextCategory): string {
+  const list = TEXT_DATA[cat];
+  return list[Math.floor(Math.random() * list.length)];
+}
 
 export default function TypingRaceGamePage() {
-  const [text, setText] = useState("");
+  const [category, setCategory] = useState<TextCategory>("quotes");
+  const [targetText, setTargetText] = useState<string>(() => getRandomText("quotes"));
   const [userInput, setUserInput] = useState("");
   const [wpm, setWpm] = useState(0);
+  const [cpm, setCpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [timeLeft, setTimeLeft] = useState(60);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    setText(SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)]);
-  }, []);
+  const { highScore: bestWpm, updateHighScore: updateBestWpm } = useHighScore("typing_race_wpm", 0);
 
-  useEffect(() => {
-    let timer: number;
-    if (isPlaying && timeLeft > 0) {
-      timer = window.setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    }
-    if (timeLeft === 0) {
-      setGameOver(true);
-      setIsPlaying(false);
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, timeLeft]);
-
-  useEffect(() => {
-    if (isPlaying && !gameOver) {
-      const words = userInput.trim().split(" ").filter((word) => word.length > 0);
-      const timeElapsed = 60 - timeLeft;
-      if (timeElapsed > 0) {
-        setWpm(Math.round((words.length / timeElapsed) * 60));
-      }
-
-      const correctChars = userInput.split("").filter((char, index) => char === text[index]).length;
-      setAccuracy(Math.round((correctChars / userInput.length) * 100) || 100);
-
-      if (userInput === text) {
-        setGameOver(true);
-        setIsPlaying(false);
-      }
-    }
-  }, [userInput, isPlaying, gameOver, timeLeft, text]);
-
-  const startGame = () => {
+  const handleCategorySelect = (cat: TextCategory) => {
+    setCategory(cat);
+    const text = getRandomText(cat);
+    setTargetText(text);
     setUserInput("");
     setWpm(0);
+    setCpm(0);
+    setAccuracy(100);
+    setTimeLeft(60);
+    setGameOver(false);
+    setIsPlaying(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const startGame = () => {
+    const text = getRandomText(category);
+    setTargetText(text);
+    setUserInput("");
+    setWpm(0);
+    setCpm(0);
     setAccuracy(100);
     setTimeLeft(60);
     setGameOver(false);
     setIsPlaying(true);
-    setText(SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)]);
+    startTimeRef.current = Date.now();
+    soundManager.playBlip();
+
     setTimeout(() => inputRef.current?.focus(), 100);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setGameOver(true);
+          setIsPlaying(false);
+          soundManager.playWin();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserInput(e.target.value);
-  };
+    if (!isPlaying || gameOver) return;
+    const val = e.target.value;
+    setUserInput(val);
 
-  const getCharColor = (index: number) => {
-    if (index >= userInput.length) return "text-slate-500";
-    if (userInput[index] === text[index]) return "text-green-400";
-    return "text-red-400";
+    soundManager.playPop();
+
+    const elapsedSeconds = Math.max(1, (Date.now() - (startTimeRef.current || Date.now())) / 1000);
+
+    // CPM & WPM calculation (standard 5 chars = 1 word)
+    const correctChars = val.split("").filter((char, idx) => char === targetText[idx]).length;
+    const currentCpm = Math.round((correctChars / elapsedSeconds) * 60);
+    const currentWpm = Math.round((correctChars / 5 / elapsedSeconds) * 60);
+    const currentAcc = Math.round((correctChars / Math.max(1, val.length)) * 100);
+
+    setCpm(currentCpm);
+    setWpm(currentWpm);
+    setAccuracy(currentAcc);
+
+    if (val === targetText) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setGameOver(true);
+      setIsPlaying(false);
+      soundManager.playWin();
+      updateBestWpm(currentWpm);
+    }
   };
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712]">
-      <ParticlesBackground />
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        <SiteHeader title="Typing Race" />
-        <GamesBackLink />
-
-        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="mx-auto w-full max-w-2xl text-center">
-            <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-              ⌨️ Typing Race
-            </h1>
-            <p className="mb-8 text-slate-400">
-              Type as fast as you can! Test your typing speed and accuracy.
-            </p>
-
-            <div className="mb-6 flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-sm text-slate-400">WPM</p>
-                <p className="text-2xl font-bold text-cyan-100">{wpm}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Accuracy</p>
-                <p className="text-2xl font-bold text-cyan-100">{accuracy}%</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Time</p>
-                <p className="text-2xl font-bold text-cyan-100">{timeLeft}s</p>
-              </div>
-            </div>
-
-            <div className="mb-6 rounded-xl border-2 border-cyan-500/30 bg-slate-950/50 p-6">
-              <p className="mb-4 text-lg leading-relaxed font-mono">
-                {text.split("").map((char, index) => (
-                  <span key={index} className={getCharColor(index)}>
-                    {char}
-                  </span>
-                ))}
-              </p>
-              <input
-                ref={inputRef}
-                type="text"
-                value={userInput}
-                onChange={handleInputChange}
-                disabled={!isPlaying}
-                placeholder="Start typing here..."
-                className="w-full rounded-lg border-2 border-slate-700 bg-slate-900/50 px-4 py-3 text-lg font-mono text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
-              />
-            </div>
-
-            {gameOver && (
-              <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">
-                  {userInput === text ? "Text Complete!" : "Time's Up!"}
-                </p>
-                <p className="text-slate-400">WPM: {wpm} | Accuracy: {accuracy}%</p>
-              </div>
-            )}
-
-            <div className="flex justify-center gap-4">
-              {!isPlaying ? (
-                <button
-                  onClick={startGame}
-                  className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500"
-                >
-                  {gameOver ? "Play Again" : "Start Race"}
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsPlaying(false)}
-                  className="rounded-xl bg-rose-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-rose-500"
-                >
-                  Stop
-                </button>
-              )}
-            </div>
-
-            <div className="mt-8 text-sm text-slate-500">
-              <p className="mb-2 font-medium text-slate-400">How to Play:</p>
-              <p>Type the displayed text as quickly and accurately as possible. You have 60 seconds!</p>
-            </div>
+    <GameShell
+      title="Typing Race"
+      description="Test your typing speed (WPM & CPM), precision accuracy, and master quote/code snippets!"
+      icon="⌨️"
+      score={wpm}
+      highScore={bestWpm}
+      scoreLabel="WPM"
+      highScoreLabel="Best WPM"
+      isPlaying={isPlaying}
+      howToPlayText="Type the displayed sentence as fast and accurately as possible within 60 seconds. Correct characters glow green; incorrect ones turn red."
+      customControls={
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-slate-400">Snippet:</span>
+          {(["quotes", "tech", "code"] as TextCategory[]).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCategorySelect(cat)}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold uppercase transition-all ${
+                category === cat
+                  ? "bg-cyan-500 text-slate-950"
+                  : "border border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-500/40"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="flex flex-col items-center max-w-2xl mx-auto">
+        <div className="mb-6 flex justify-around w-full max-w-md rounded-2xl border border-cyan-500/20 bg-slate-950/60 p-3 text-center">
+          <div>
+            <p className="text-xs text-slate-400">CPM</p>
+            <p className="text-xl font-bold text-cyan-300">{cpm}</p>
           </div>
-        </main>
+          <div>
+            <p className="text-xs text-slate-400">Accuracy</p>
+            <p className="text-xl font-bold text-cyan-300">{accuracy}%</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Time Left</p>
+            <p className="text-xl font-bold text-cyan-300">{timeLeft}s</p>
+          </div>
+        </div>
+
+        {/* Text Display Container */}
+        <div className="mb-6 w-full rounded-2xl border border-cyan-500/30 bg-slate-950/90 p-6 shadow-2xl text-left font-mono leading-relaxed text-base sm:text-lg">
+          {targetText.split("").map((char, index) => {
+            let color = "text-slate-500";
+            if (index < userInput.length) {
+              color = userInput[index] === char ? "text-emerald-400 font-bold bg-emerald-950/40" : "text-rose-400 font-bold bg-rose-950/60";
+            }
+            const isCursor = index === userInput.length;
+            return (
+              <span key={index} className={`${color} ${isCursor ? "border-b-2 border-cyan-400 animate-pulse" : ""}`}>
+                {char}
+              </span>
+            );
+          })}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={userInput}
+          onChange={handleInputChange}
+          disabled={!isPlaying || gameOver}
+          placeholder={isPlaying ? "Type here..." : "Click Start Race below"}
+          className="w-full rounded-2xl border-2 border-slate-700/80 bg-slate-900/60 px-4 py-3.5 font-mono text-base text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 disabled:opacity-40"
+        />
+
+        {gameOver && (
+          <div className="mt-6 w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-4 text-center">
+            <p className="text-xl font-bold text-emerald-300">🎉 Race Complete!</p>
+            <p className="text-sm text-slate-300">Speed: {wpm} WPM ({cpm} CPM) | Accuracy: {accuracy}%</p>
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={startGame}
+            className="rounded-2xl bg-cyan-500 px-8 py-3 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 hover:scale-105"
+          >
+            {gameOver ? "Race Again" : "Start Race"}
+          </button>
+        </div>
       </div>
-    </div>
+    </GameShell>
   );
 }

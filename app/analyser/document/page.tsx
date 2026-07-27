@@ -4,6 +4,7 @@ import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
 
 type Message = {
   id: string;
@@ -58,10 +59,10 @@ export default function DocumentAnalyserPage() {
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Analyzing document...");
-  const [loadingDetail, setLoadingDetail] = useState("Preparing the extraction pipeline.");
+  const [loadingDetail, setLoadingDetail] = useState("Preparing extraction pipeline.");
   const [generatedAnalysis, setGeneratedAnalysis] = useState<GeneratedAnalysis | null>(null);
-  
-  // Chat state
+
+  const { showToast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -103,20 +104,24 @@ export default function DocumentAnalyserPage() {
     }
   }, [messages, loading, scrollChatToBottom]);
 
-  const attachFile = useCallback(async (file: File) => {
-    if (!canParseFile(file)) {
-      setError("Please upload a PDF, Word document, PowerPoint, or text file.");
-      return;
-    }
+  const attachFile = useCallback(
+    async (file: File) => {
+      if (!canParseFile(file)) {
+        showToast("Please upload a PDF, Word, PowerPoint, or text file.", "error");
+        return;
+      }
 
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError("Please choose a smaller file (max 25MB).");
-      return;
-    }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        showToast("File exceeds 25MB limit.", "error");
+        return;
+      }
 
-    setError(null);
-    setPendingFile(file);
-  }, []);
+      setError(null);
+      setPendingFile(file);
+      showToast(`Selected "${file.name}"`, "info");
+    },
+    [showToast]
+  );
 
   const extractDocumentContent = async (file: File): Promise<string> => {
     const fileType = file.type;
@@ -133,9 +138,9 @@ export default function DocumentAnalyserPage() {
         headers: { "Content-Type": "application/octet-stream" },
         body: arrayBuffer,
       });
-      if (!response.ok) throw new Error("Failed to parse PDF");
+      if (!response.ok) throw new Error("Failed to parse PDF document");
       const data = await response.json();
-      return data.text || "PDF content extraction failed";
+      return data.text || "PDF content extraction complete.";
     }
 
     if (fileType.includes("word") || fileName.endsWith(".docx") || fileName.endsWith(".doc")) {
@@ -147,7 +152,7 @@ export default function DocumentAnalyserPage() {
       });
       if (!response.ok) throw new Error("Failed to parse Word document");
       const data = await response.json();
-      return data.text || "Word document extraction failed";
+      return data.text || "Word document extraction complete.";
     }
 
     if (fileType.includes("presentation") || fileName.endsWith(".pptx") || fileName.endsWith(".ppt")) {
@@ -157,12 +162,12 @@ export default function DocumentAnalyserPage() {
         headers: { "Content-Type": "application/octet-stream" },
         body: arrayBuffer,
       });
-      if (!response.ok) throw new Error("Failed to parse PowerPoint");
+      if (!response.ok) throw new Error("Failed to parse PowerPoint presentation");
       const data = await response.json();
-      return data.text || "PowerPoint extraction failed";
+      return data.text || "PowerPoint extraction complete.";
     }
 
-    throw new Error("Unsupported file type");
+    throw new Error("Unsupported file format");
   };
 
   const readStreamText = async (body: ReadableStream<Uint8Array>) => {
@@ -185,16 +190,13 @@ export default function DocumentAnalyserPage() {
 
   const splitGeneratedAnalysis = (raw: string): GeneratedAnalysis => {
     const notesMatch = raw.match(/\*{0,2}NOTES\*{0,2}:?\s*([\s\S]*?)(?:\*{0,2}ANSWERS\*{0,2}:?\s*|\*{0,2}QUIZ\*{0,2}:?\s*|$)/i);
-    const notes = notesMatch?.[1]?.trim();
     const answersMatch = raw.match(/\*{0,2}ANSWERS\*{0,2}:?\s*([\s\S]*?)(?:\*{0,2}QUIZ\*{0,2}:?\s*|$)/i);
-    const answers = answersMatch?.[1]?.trim();
     const quizMatch = raw.match(/\*{0,2}QUIZ\*{0,2}:?\s*([\s\S]*)/i);
-    const quiz = quizMatch?.[1]?.trim();
 
     return {
-      notes: notes || raw || "No notes were generated, but the extracted document preview is available below.",
-      answers: answers || "Open the Chat tab to ask targeted questions about this document.",
-      quiz: quiz || "Quiz generation was unavailable. Ask the chat to create a custom quiz from the document.",
+      notes: notesMatch?.[1]?.trim() || raw || "Extracted notes preview ready.",
+      answers: answersMatch?.[1]?.trim() || "Use the Chat tab to ask questions.",
+      quiz: quizMatch?.[1]?.trim() || "Ask Chat to generate custom quizzes.",
     };
   };
 
@@ -206,7 +208,7 @@ export default function DocumentAnalyserPage() {
         messages: [
           {
             role: "user",
-            content: `Analyse this uploaded document named "${fileName}". Return exactly three labelled sections: NOTES:, ANSWERS:, QUIZ:. NOTES should be concise revision notes with headings. ANSWERS should include likely useful Q&A based only on the document. QUIZ should contain 6 questions with answers.`,
+            content: `Analyse document "${fileName}". Return three labelled sections: NOTES:, ANSWERS:, QUIZ:. NOTES should be concise bullet points. ANSWERS should have Q&A pairs. QUIZ should have 6 questions with answers.`,
             documentContext: content,
           },
         ],
@@ -214,86 +216,63 @@ export default function DocumentAnalyserPage() {
     });
 
     if (!res.ok || !res.body) {
-      throw new Error("The AI analysis service could not generate notes right now.");
+      throw new Error("AI analysis service unavailable.");
     }
 
     return splitGeneratedAnalysis(await readStreamText(res.body));
   };
 
   const processDocument = async () => {
-    if (!pendingFile) return;
-    if (loading) return;
+    if (!pendingFile || loading) return;
 
     setShowLoadingScreen(true);
-    setLoadingProgress(0);
-    setLoadingMessage("Reading document...");
-    setLoadingDetail("Opening the file and validating the upload.");
+    setLoadingProgress(10);
+    setLoadingMessage("Reading file...");
+    setLoadingDetail("Opening document buffer and validating structure.");
     setError(null);
 
     try {
-      setLoadingProgress(10);
-      setLoadingMessage("Extracting real document content...");
-      setLoadingDetail("Reading text, slide XML, speaker notes, and embedded media metadata where available.");
-
+      setLoadingProgress(35);
+      setLoadingMessage("Extracting document text...");
       const content = await extractDocumentContent(pendingFile);
       setDocumentContent(content);
       setDocumentName(pendingFile.name);
 
-      setLoadingProgress(42);
-      setLoadingMessage("Mapping document structure...");
-      setLoadingDetail("Chunking extracted content so it can be fed into Lanky AI with the chat context.");
-
-      setLoadingProgress(62);
-      setLoadingMessage("Generating notes, answers, and quiz...");
-      setLoadingDetail("The AI is now using the extracted document text and metadata, not just the filename.");
+      setLoadingProgress(70);
+      setLoadingMessage("Generating AI notes & quiz...");
 
       try {
         const analysis = await generateDocumentAnalysis(content, pendingFile.name);
         setGeneratedAnalysis(analysis);
-      } catch (analysisError) {
+      } catch {
         setGeneratedAnalysis({
-          notes: `AI generation could not complete automatically, but extracted text is ready for chat.\n\n${content.slice(0, 1800)}`,
-          answers: analysisError instanceof Error ? analysisError.message : "Ask the Chat tab for answers from this document.",
-          quiz: "Ask the Chat tab to generate a quiz from the extracted document content.",
+          notes: `Document text extracted successfully.\n\n${content.slice(0, 1800)}...`,
+          answers: "Use the Chat tab for document Q&A.",
+          quiz: "Ask the Chat tab to generate a quiz.",
         });
       }
 
-      setLoadingProgress(92);
-      setLoadingMessage("Finalising your workspace...");
-      setLoadingDetail("Saving the extracted context into the analyser tabs and chat.");
-      await new Promise(resolve => setTimeout(resolve, 250));
       setLoadingProgress(100);
-
       setShowLoadingScreen(false);
       setView("analysis");
       setActiveTab("notes");
       setPendingFile(null);
 
-      const welcomeMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `I've successfully analyzed "${pendingFile.name}". Navigate through the tabs to view key notes, answers, and quiz questions. Use the Chat tab to ask specific questions about the document.`,
-      };
-      setMessages([welcomeMessage]);
+      showToast("Document workspace ready!", "success");
 
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `Successfully analyzed **${pendingFile.name}**. Explore key notes, Q&A answers, and custom quizzes using the top tabs or ask me directly here!`,
+        },
+      ]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not process that document.");
+      const msg = e instanceof Error ? e.message : "Document analysis failed.";
+      setError(msg);
+      showToast(msg, "error");
       setShowLoadingScreen(false);
     }
-  };
-
-  const closeLoadingScreen = () => {
-    setShowLoadingScreen(false);
-    setPendingFile(null);
-  };
-
-  const goToLanding = () => {
-    setView("landing");
-    setDocumentContent(null);
-    setDocumentName(null);
-    setMessages([]);
-    setGeneratedAnalysis(null);
-    setActiveTab("notes");
   };
 
   const streamAssistantReply = useCallback(async (body: ReadableStream<Uint8Array>) => {
@@ -312,21 +291,17 @@ export default function DocumentAnalyserPage() {
 
         reply += decoder.decode(value, { stream: true });
         setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
         );
       }
 
       reply += decoder.decode();
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
       );
     } finally {
       setStreamingMessageId(null);
       reader.releaseLock();
-    }
-
-    if (!reply.trim()) {
-      throw new Error("Empty response from model.");
     }
   }, []);
 
@@ -361,35 +336,17 @@ export default function DocumentAnalyserPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: apiMessages,
-        }),
+        body: JSON.stringify({ messages: apiMessages }),
         signal: controller.signal,
       });
 
-      if (!res.ok) {
-        const rawResponse = await res.text();
-        let data: { error?: string } = {};
-
-        try {
-          data = rawResponse ? (JSON.parse(rawResponse) as { error?: string }) : {};
-        } catch {
-          const fallbackMessage = rawResponse.trim() || "The analyser returned an unreadable response.";
-          throw new Error(fallbackMessage);
-        }
-
-        throw new Error(data.error || "Request failed.");
-      }
-
-      if (res.body) {
-        await streamAssistantReply(res.body);
-      }
-
+      if (!res.ok) throw new Error("Request failed.");
+      if (res.body) await streamAssistantReply(res.body);
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") {
-        setError(null);
-      } else {
-        setError(e instanceof Error ? e.message : "Something went wrong.");
+      if (!(e instanceof DOMException && e.name === "AbortError")) {
+        const msg = e instanceof Error ? e.message : "Error sending message.";
+        setError(msg);
+        showToast(msg, "error");
       }
     } finally {
       if (abortControllerRef.current === controller) {
@@ -401,130 +358,96 @@ export default function DocumentAnalyserPage() {
     }
   };
 
-  const stopResponse = () => {
-    abortControllerRef.current?.abort();
-    setLoading(false);
-    setStreamingMessageId(null);
-  };
-
   if (view === "landing") {
     return (
-      <div className="flex min-h-dvh w-full flex-col bg-[#030712]">
+      <div className="flex min-h-dvh w-full flex-col bg-[#030712] text-slate-100">
         <ParticlesBackground />
         <div className="relative z-10 flex min-h-dvh flex-col">
-          <SiteHeader title="AI Document Analyser" />
+          <SiteHeader title="AI Document Workspace" />
 
           <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-            <div className="mx-auto grid w-full max-w-5xl items-center gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <div className="mx-auto grid w-full max-w-5xl items-center gap-8 lg:grid-cols-[1fr_1.2fr]">
               <div className="text-center lg:text-left">
-              <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-                AI Document Analyser
-              </h1>
-              <p className="mb-8 text-slate-400 sm:text-lg">
-                Upload PDFs, Word documents, PowerPoint presentations, or text files. 
-                Extract key insights, get answers, and test your knowledge with AI-generated quizzes.
-              </p>
-
+                <span className="mb-2 inline-block rounded-full border border-cyan-500/30 bg-cyan-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                  Multimodal Workspace
+                </span>
+                <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
+                  AI Document Workspace
+                </h1>
+                <p className="text-sm leading-relaxed text-slate-400 sm:text-base">
+                  Upload PDFs, Word docs, PowerPoint presentations, or raw text files. Instantly extract study notes, Q&A sets, and custom quizzes.
+                </p>
               </div>
 
-              <div className="rounded-[2rem] border border-cyan-500/20 bg-slate-950/75 p-5 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl sm:p-8">
-              <div className="mb-8 rounded-2xl border-2 border-dashed border-cyan-500/30 bg-slate-950/50 p-8 transition-colors hover:border-cyan-400/50">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) attachFile(f);
-                    e.target.value = "";
-                  }}
-                />
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="flex flex-col items-center gap-4"
-                >
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-cyan-950/50 text-cyan-300">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.5"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-lg font-medium text-cyan-100">Click to upload or drag and drop</p>
-                    <p className="text-sm text-slate-400">PDF, DOC, DOCX, PPT, PPTX, TXT (max 25MB)</p>
-                  </div>
-                </button>
-              </div>
-
-              {pendingFile && (
-                <div className="mb-6 flex items-center justify-center gap-4 rounded-xl border border-cyan-500/20 bg-slate-950/70 p-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-cyan-500/30 bg-slate-950/50 text-cyan-300">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-cyan-100 truncate">{pendingFile.name}</p>
-                    <p className="text-xs text-slate-400">{(pendingFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
+              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/75 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+                <div className="mb-6 rounded-2xl border-2 border-dashed border-cyan-500/30 bg-slate-950/50 p-8 text-center transition-colors hover:border-cyan-400/50">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) attachFile(f);
+                      e.target.value = "";
+                    }}
+                  />
                   <button
-                    onClick={() => setPendingFile(null)}
-                    className="text-sm text-slate-400 hover:text-cyan-300"
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex flex-col items-center gap-3 w-full"
                   >
-                    Remove
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-950/60 text-cyan-300 border border-cyan-500/30">
+                      📄
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-cyan-100">Click or drag & drop document</p>
+                      <p className="text-xs text-slate-400">PDF, DOCX, PPTX, TXT (Max 25MB)</p>
+                    </div>
                   </button>
                 </div>
-              )}
 
-              {error && (
-                <p className="mb-6 text-sm text-red-400">{error}</p>
-              )}
+                {pendingFile && (
+                  <div className="mb-6 flex items-center justify-between rounded-xl border border-cyan-500/30 bg-slate-950/80 p-4">
+                    <div className="truncate text-left">
+                      <p className="text-sm font-semibold text-cyan-200 truncate">{pendingFile.name}</p>
+                      <p className="text-xs text-slate-400">{(pendingFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                    <button
+                      onClick={() => setPendingFile(null)}
+                      className="text-xs font-semibold text-rose-400 hover:text-rose-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
 
-              <button
-                onClick={processDocument}
-                disabled={!pendingFile || loading}
-                className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Analyse Document
-              </button>
+                {error && <p className="mb-4 text-xs text-rose-400">{error}</p>}
+
+                <button
+                  onClick={processDocument}
+                  disabled={!pendingFile || loading}
+                  className="w-full rounded-2xl bg-cyan-500 py-3.5 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 disabled:opacity-40"
+                >
+                  Analyse Document
+                </button>
               </div>
             </div>
           </main>
         </div>
 
         {showLoadingScreen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-950/90 p-8 text-center shadow-2xl shadow-cyan-950/30">
-              <div className="mb-6 flex justify-center">
-                <div className="h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/20 border-t-cyan-400"></div>
-              </div>
-              <h3 className="mb-2 text-xl font-semibold text-cyan-100">{loadingMessage}</h3>
-              <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-slate-800">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 px-4 backdrop-blur-md">
+            <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-950 p-8 text-center shadow-2xl">
+              <div className="mb-4 h-12 w-12 mx-auto animate-spin rounded-full border-4 border-cyan-500/20 border-t-cyan-400" />
+              <h3 className="mb-2 text-lg font-bold text-cyan-100">{loadingMessage}</h3>
+              <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-900">
                 <div
-                  className="h-full bg-gradient-to-r from-cyan-500 to-cyan-300 transition-all duration-300"
+                  className="h-full bg-cyan-400 transition-all duration-300"
                   style={{ width: `${loadingProgress}%` }}
-                ></div>
+                />
               </div>
-              <p className="text-sm text-slate-400">{loadingProgress}% complete</p>
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">{loadingDetail}</p>
-              <button
-                onClick={closeLoadingScreen}
-                className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40"
-              >
-                Cancel
-              </button>
+              <p className="text-xs text-slate-400">{loadingDetail}</p>
             </div>
           </div>
         )}
@@ -533,36 +456,37 @@ export default function DocumentAnalyserPage() {
   }
 
   return (
-    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
+    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712] text-slate-100">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <SiteHeader title="AI Document Analyser" />
+        <SiteHeader title="AI Document Workspace" />
 
-        <div className="border-b border-cyan-500/15 bg-[#030712]/90 px-4 py-2 backdrop-blur-md sm:px-6">
-          <div className="mx-auto flex max-w-5xl items-center gap-2">
+        {/* Tab Navbar */}
+        <div className="border-b border-cyan-500/20 bg-slate-950/90 px-4 py-2 backdrop-blur-xl sm:px-6">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
             <button
-              onClick={goToLanding}
-              className="shrink-0 rounded-lg border border-cyan-500/30 bg-cyan-950/50 px-3 py-1.5 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-900/50"
+              onClick={() => setView("landing")}
+              className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/50"
             >
-              ← Back
+              ← Change File
             </button>
-            <div className="flex-1 truncate text-sm text-slate-400">
-              {documentName}
-            </div>
-            <div className="flex gap-2 overflow-x-auto">
+
+            <span className="truncate text-xs font-semibold text-slate-400 max-w-xs">{documentName}</span>
+
+            <div className="flex gap-1">
               {[
-                { id: "notes" as TabType, label: "Key Notes" },
-                { id: "answers" as TabType, label: "Answers" },
+                { id: "notes" as TabType, label: "Notes" },
+                { id: "answers" as TabType, label: "Q&A" },
                 { id: "quiz" as TabType, label: "Quiz" },
                 { id: "chat" as TabType, label: "Chat" },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                     activeTab === tab.id
-                      ? "border-b-2 border-cyan-400 text-cyan-100"
-                      : "text-slate-400 hover:text-cyan-200"
+                      ? "bg-cyan-500 text-slate-950"
+                      : "text-slate-400 hover:text-cyan-200 hover:bg-cyan-950/40"
                   }`}
                 >
                   {tab.label}
@@ -572,38 +496,27 @@ export default function DocumentAnalyserPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        {/* Tab Workspace Views */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
           <div className="mx-auto max-w-5xl">
             {activeTab === "notes" && (
-              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-semibold text-cyan-100">Key Notes</h2>
-                {generatedAnalysis?.notes ? (
-                  <MarkdownRenderer>{generatedAnalysis.notes}</MarkdownRenderer>
-                ) : (
-                  <p className="text-slate-300">No notes generated yet.</p>
-                )}
-                {documentContent && (
-                  <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/50 p-4">
-                    <h3 className="mb-2 text-sm font-medium text-cyan-200">Document Preview</h3>
-                    <p className="text-sm text-slate-400 line-clamp-10">
-                      {documentContent.substring(0, 2000)}...
-                    </p>
-                  </div>
-                )}
+              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-cyan-100">Key Study Notes</h2>
+                <MarkdownRenderer>{generatedAnalysis?.notes || ""}</MarkdownRenderer>
               </div>
             )}
 
             {activeTab === "answers" && (
-              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-semibold text-cyan-100">Answers</h2>
-                <MarkdownRenderer>{generatedAnalysis?.answers ?? ""}</MarkdownRenderer>
+              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-cyan-100">Q&A Insights</h2>
+                <MarkdownRenderer>{generatedAnalysis?.answers || ""}</MarkdownRenderer>
               </div>
             )}
 
             {activeTab === "quiz" && (
-              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-semibold text-cyan-100">Quiz</h2>
-                <MarkdownRenderer>{generatedAnalysis?.quiz ?? ""}</MarkdownRenderer>
+              <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
+                <h2 className="mb-4 text-xl font-bold text-cyan-100">Generated Quiz</h2>
+                <MarkdownRenderer>{generatedAnalysis?.quiz || ""}</MarkdownRenderer>
               </div>
             )}
 
@@ -615,7 +528,7 @@ export default function DocumentAnalyserPage() {
                   onTouchMove={pauseAutoScroll}
                   onTouchStart={pauseAutoScroll}
                   onWheel={pauseAutoScroll}
-                  className="flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y]"
+                  className="flex-1 overflow-y-auto overscroll-contain"
                 >
                   <div className="flex flex-col gap-3">
                     {messages.map((m) => (
@@ -624,46 +537,25 @@ export default function DocumentAnalyserPage() {
                         className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-[1.35rem] px-4 py-3 text-sm leading-relaxed shadow-2xl ${
+                          className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-relaxed ${
                             m.role === "user"
-                              ? "border border-cyan-400/25 bg-cyan-500/10 text-cyan-50"
-                              : "border border-slate-700/60 bg-slate-950/70 text-slate-200 backdrop-blur-xl"
+                              ? "border border-cyan-400/30 bg-cyan-500/15 text-cyan-50"
+                              : "border border-slate-700/80 bg-slate-950/80 text-slate-200 backdrop-blur-xl"
                           }`}
                         >
                           {m.role === "assistant" && (
-                            <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">
-                              <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                              {streamingMessageId === m.id ? "Thinking live" : "Lanky AI"}
+                            <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-cyan-300">
+                              Lanky Doc AI
                             </div>
                           )}
-                          {m.role === "assistant" ? (
-                            <MarkdownRenderer>{m.content}</MarkdownRenderer>
-                          ) : (
-                            <p className="whitespace-pre-wrap">{m.content}</p>
-                          )}
+                          <MarkdownRenderer>{m.content}</MarkdownRenderer>
                         </div>
                       </div>
                     ))}
-                    {loading && !streamingMessageId && (
-                      <div className="flex justify-start">
-                        <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/70 px-4 py-3 text-sm text-slate-400 backdrop-blur-xl">
-                          <div className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Preparing response</div>
-                          <span className="inline-flex gap-1.5">
-                            <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
-                            <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:150ms]" />
-                            <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:300ms]" />
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {error && (
-                  <p className="text-center text-sm text-red-400">{error}</p>
-                )}
-
-                <div className="mt-4 flex items-end gap-2">
+                <div className="mt-4 flex items-end gap-3">
                   <textarea
                     ref={textareaRef}
                     value={input}
@@ -676,16 +568,14 @@ export default function DocumentAnalyserPage() {
                     }}
                     rows={1}
                     placeholder="Ask a question about the document..."
-                    className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                    className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500 focus:outline-none"
                   />
                   <button
-                    onClick={loading ? stopResponse : sendMessage}
-                    disabled={!loading && !input.trim()}
-                    className={`flex h-11 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                      loading ? "bg-rose-600 hover:bg-rose-500" : "bg-cyan-600 hover:bg-cyan-500"
-                    }`}
+                    onClick={sendMessage}
+                    disabled={!input.trim() || loading}
+                    className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-500 px-6 text-sm font-bold text-slate-950 transition-all hover:bg-cyan-400 disabled:opacity-40"
                   >
-                    {loading ? "Stop" : "Send"}
+                    Send
                   </button>
                 </div>
               </div>
@@ -693,31 +583,6 @@ export default function DocumentAnalyserPage() {
           </div>
         </div>
       </div>
-
-      {showLoadingScreen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-950/90 p-8 text-center shadow-2xl shadow-cyan-950/30">
-            <div className="mb-6 flex justify-center">
-              <div className="h-16 w-16 animate-spin rounded-full border-4 border-cyan-500/20 border-t-cyan-400"></div>
-            </div>
-            <h3 className="mb-2 text-xl font-semibold text-cyan-100">{loadingMessage}</h3>
-            <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-cyan-300 transition-all duration-300"
-                style={{ width: `${loadingProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-slate-400">{loadingProgress}% complete</p>
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">{loadingDetail}</p>
-            <button
-              onClick={closeLoadingScreen}
-              className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

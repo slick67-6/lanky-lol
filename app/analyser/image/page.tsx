@@ -4,6 +4,7 @@ import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
 
 type Message = {
   id: string;
@@ -16,12 +17,6 @@ const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_SIDE = 900;
 const COMPRESSED_IMAGE_QUALITY = 0.68;
 const AUTO_SCROLL_THRESHOLD = 120;
-const AI_CAPABILITIES = [
-  "Persistent image context for follow-up questions",
-  "Full Markdown rendering for rich answers",
-  "Stronger coding, debugging, and planning responses",
-  "Cleaner streaming with improved readability",
-];
 
 const PROMPT_SUGGESTIONS = [
   "Explain this image in detail",
@@ -81,15 +76,16 @@ export default function ImageAnalyserPage() {
       id: "welcome",
       role: "assistant",
       content:
-        "Drop an image, paste from clipboard, or ask anything. I keep the latest image in context for follow-up questions and answer with rich Markdown when it helps.",
+        "Welcome to **Lanky AI Vision**! Drop an image, paste from your clipboard, or choose a prompt suggestion below. I maintain visual context across our chat.",
     },
   ]);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+
+  const { showToast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -107,7 +103,7 @@ export default function ImageAnalyserPage() {
 
     if (prefersReducedMotion) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
       );
       setStreamingMessageId(null);
       return;
@@ -117,15 +113,12 @@ export default function ImageAnalyserPage() {
     for (let i = 0; i < reply.length; i += step) {
       const next = reply.slice(0, i + step);
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: next } : m)),
+        prev.map((m) => (m.id === messageId ? { ...m, content: next } : m))
       );
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => resolve());
-      });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     }
     setStreamingMessageId(null);
   }, []);
-
 
   const streamAssistantReply = useCallback(async (body: ReadableStream<Uint8Array>) => {
     const messageId = crypto.randomUUID();
@@ -143,13 +136,13 @@ export default function ImageAnalyserPage() {
 
         reply += decoder.decode(value, { stream: true });
         setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
         );
       }
 
       reply += decoder.decode();
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m)),
+        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
       );
     } finally {
       setStreamingMessageId(null);
@@ -157,7 +150,7 @@ export default function ImageAnalyserPage() {
     }
 
     if (!reply.trim()) {
-      throw new Error("Empty response from model.");
+      throw new Error("Empty response from vision model.");
     }
   }, []);
 
@@ -174,12 +167,10 @@ export default function ImageAnalyserPage() {
 
   const updateChatAutoScroll = useCallback(() => {
     const nearBottom = isNearBottom();
-
     if (!nearBottom) {
       shouldAutoScrollRef.current = false;
       return;
     }
-
     if (!loading) {
       shouldAutoScrollRef.current = true;
     }
@@ -195,26 +186,30 @@ export default function ImageAnalyserPage() {
     }
   }, [messages, loading, scrollChatToBottom]);
 
-  const attachFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
-      setError("Please attach an image file.");
-      return;
-    }
+  const attachFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/") && !file.name.match(/\.(heic|heif)$/i)) {
+        showToast("Please attach a valid image file.", "error");
+        return;
+      }
 
-    if (file.size > MAX_UPLOAD_BYTES && !canCanvasRead(file)) {
-      setError("Please choose a smaller image, or convert it to JPG/PNG first.");
-      return;
-    }
+      if (file.size > MAX_UPLOAD_BYTES && !canCanvasRead(file)) {
+        showToast("Please choose a smaller image (max 12MB).", "error");
+        return;
+      }
 
-    setError(null);
+      setError(null);
 
-    try {
-      const dataUrl = await compressImageForChat(file);
-      setPendingImage(dataUrl);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not prepare that image.");
-    }
-  }, []);
+      try {
+        const dataUrl = await compressImageForChat(file);
+        setPendingImage(dataUrl);
+        showToast("Image attached successfully!", "success");
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : "Could not attach image.", "error");
+      }
+    },
+    [showToast]
+  );
 
   const send = async () => {
     const text = input.trim();
@@ -233,7 +228,6 @@ export default function ImageAnalyserPage() {
     setMessages(nextMessages);
     setInput("");
     setPendingImage(null);
-    setPlusMenuOpen(false);
     setLoading(true);
     setError(null);
     requestAnimationFrame(() => scrollChatToBottom("smooth"));
@@ -254,23 +248,18 @@ export default function ImageAnalyserPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: apiMessages,
-        }),
+        body: JSON.stringify({ messages: apiMessages }),
         signal: controller.signal,
       });
 
       if (!res.ok) {
         const rawResponse = await res.text();
         let data: { error?: string } = {};
-
         try {
           data = rawResponse ? (JSON.parse(rawResponse) as { error?: string }) : {};
         } catch {
-          const fallbackMessage = rawResponse.trim() || "The analyser returned an unreadable response.";
-          throw new Error(fallbackMessage);
+          throw new Error(rawResponse.trim() || "Model response failed.");
         }
-
         throw new Error(data.error || "Request failed.");
       }
 
@@ -281,12 +270,13 @@ export default function ImageAnalyserPage() {
         const data = rawResponse ? (JSON.parse(rawResponse) as { reply?: string }) : {};
         await animateAssistantReply(data.reply ?? "");
       }
-
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         setError(null);
       } else {
-        setError(e instanceof Error ? e.message : "Something went wrong.");
+        const msg = e instanceof Error ? e.message : "Something went wrong.";
+        setError(msg);
+        showToast(msg, "error");
       }
     } finally {
       if (abortControllerRef.current === controller) {
@@ -324,11 +314,12 @@ export default function ImageAnalyserPage() {
   }, [attachFile]);
 
   return (
-    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712]">
+    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-[#030712] text-slate-100">
       <ParticlesBackground />
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <SiteHeader title="AI Image Analyser" />
 
+        {/* Message Log */}
         <div
           ref={scrollRef}
           onScroll={updateChatAutoScroll}
@@ -337,50 +328,48 @@ export default function ImageAnalyserPage() {
           onWheel={pauseAutoScroll}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [touch-action:pan-y] sm:px-6"
         >
-          <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:gap-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {messages.map((m) => (
               <div
                 key={m.id}
-                className={`group flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`relative max-w-[96%] rounded-[1.35rem] px-3.5 py-3 text-sm leading-relaxed shadow-2xl transition-all duration-300 sm:max-w-[85%] sm:px-4 sm:text-base ${
+                  className={`relative max-w-[92%] sm:max-w-[85%] rounded-3xl px-4 py-3.5 text-sm leading-relaxed shadow-2xl transition-all ${
                     m.role === "user"
-                      ? "border border-cyan-400/25 bg-cyan-500/10 text-cyan-50 shadow-cyan-950/30"
-                      : "border border-slate-700/60 bg-slate-950/70 text-slate-200 shadow-slate-950/50 backdrop-blur-xl"
+                      ? "border border-cyan-400/30 bg-cyan-500/15 text-cyan-50 shadow-cyan-950/30"
+                      : "border border-slate-700/80 bg-slate-950/80 text-slate-200 shadow-slate-950/60 backdrop-blur-xl"
                   }`}
                 >
                   {m.role === "assistant" && (
-                    <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">
-                      <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
-                      {streamingMessageId === m.id ? "Thinking live" : "Lanky AI"}
+                    <div className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-cyan-300">
+                      <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+                      {streamingMessageId === m.id ? "Thinking live..." : "Lanky Vision AI"}
                     </div>
                   )}
+
                   {m.imagePreview && (
-                    // eslint-disable-next-line @next/next/no-img-element
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={m.imagePreview}
-                      alt="Uploaded"
-                      className="mb-3 max-h-56 w-full rounded-xl border border-white/10 object-contain"
+                      alt="Uploaded preview"
+                      className="mb-3 max-h-60 w-full rounded-2xl border border-white/10 object-contain"
                     />
                   )}
+
                   {m.role === "assistant" ? (
-                    <>
-                      <MarkdownRenderer>{m.content}</MarkdownRenderer>
-                      {streamingMessageId === m.id && (
-                        <span className="inline-block h-5 w-2 translate-y-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.75)]" aria-hidden />
-                      )}
-                    </>
+                    <MarkdownRenderer>{m.content}</MarkdownRenderer>
                   ) : (
                     <p className="whitespace-pre-wrap">{m.content}</p>
                   )}
                 </div>
               </div>
             ))}
+
             {loading && !streamingMessageId && (
               <div className="flex justify-start">
-                <div className="rounded-[1.35rem] border border-slate-700/60 bg-slate-950/70 px-4 py-3 text-sm text-slate-400 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-                  <div className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-cyan-300/80">Preparing response</div>
+                <div className="rounded-3xl border border-slate-700/80 bg-slate-950/80 px-5 py-3.5 text-sm text-slate-400 shadow-xl backdrop-blur-xl">
+                  <div className="mb-2 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-cyan-300">Analyzing Image</div>
                   <span className="inline-flex gap-1.5">
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
                     <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300 [animation-delay:150ms]" />
@@ -393,7 +382,7 @@ export default function ImageAnalyserPage() {
         </div>
 
         {error && (
-          <p className="relative z-10 mx-auto max-w-3xl px-4 pb-2 text-center text-sm text-red-400">
+          <p className="relative z-10 mx-auto max-w-3xl px-4 pb-2 text-center text-sm text-rose-400">
             {error}
           </p>
         )}
@@ -404,20 +393,20 @@ export default function ImageAnalyserPage() {
             <img
               src={pendingImage}
               alt="Pending upload"
-              className="h-16 w-16 rounded-lg border border-cyan-500/30 object-cover"
+              className="h-16 w-16 rounded-xl border border-cyan-500/40 object-cover"
             />
             <button
               type="button"
               onClick={() => setPendingImage(null)}
-              className="text-xs text-slate-400 hover:text-cyan-300"
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300"
             >
               Remove image
             </button>
           </div>
         )}
 
-
-        <div className="relative z-10 shrink-0 border-t border-cyan-500/15 bg-[#030712]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+        {/* Input Bar */}
+        <div className="relative z-10 shrink-0 border-t border-cyan-500/20 bg-[#030712]/95 px-4 py-3 backdrop-blur-xl sm:px-6">
           <div className="mx-auto mb-3 flex max-w-3xl gap-2 overflow-x-auto pb-1">
             {PROMPT_SUGGESTIONS.map((suggestion) => (
               <button
@@ -425,17 +414,18 @@ export default function ImageAnalyserPage() {
                 type="button"
                 onClick={() => setInput(suggestion)}
                 disabled={loading}
-                className="shrink-0 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-400/15 disabled:opacity-40"
+                className="shrink-0 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400/50 hover:bg-cyan-400/20 disabled:opacity-40"
               >
                 {suggestion}
               </button>
             ))}
           </div>
-          <div className="mx-auto flex max-w-3xl items-end gap-2 sm:gap-3">
+
+          <div className="mx-auto flex max-w-3xl items-end gap-3">
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,.heic,.heif,.webp,.avif,.bmp,.tiff,.tif"
+              accept="image/*,.heic,.heif,.webp,.avif,.bmp"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -443,45 +433,18 @@ export default function ImageAnalyserPage() {
                 e.target.value = "";
               }}
             />
+
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-950/50 text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               aria-label="Attach image"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                />
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" />
               </svg>
             </button>
-            <div className="relative shrink-0">
-              {plusMenuOpen && (
-                <div className="absolute -left-14 bottom-14 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-2 text-sm text-slate-200 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
-                  {AI_CAPABILITIES.map((feature) => (
-                    <div key={feature} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-slate-400">
-                      <span>{feature}</span>
-                      <span className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-500">
-                        Ready
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setPlusMenuOpen((open) => !open)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-950/50 text-2xl leading-none text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/10 hover:text-cyan-100"
-                aria-expanded={plusMenuOpen}
-                aria-label="Open AI capability details"
-              >
-                +
-              </button>
-            </div>
+
             <textarea
               ref={textareaRef}
               value={input}
@@ -493,15 +456,16 @@ export default function ImageAnalyserPage() {
                 }
               }}
               rows={1}
-              placeholder={loading ? "You can scroll or stop while I answer…" : "Message or paste an image…"}
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 shadow-inner shadow-slate-950/60 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 sm:text-base"
+              placeholder={loading ? "Generating response..." : "Ask a question or paste an image..."}
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-700/80 bg-slate-950/80 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 sm:text-base"
             />
+
             <button
               type="button"
               onClick={loading ? stopResponse : send}
               disabled={!loading && !input.trim() && !pendingImage}
-              className={`flex h-11 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                loading ? "bg-rose-600 hover:bg-rose-500" : "bg-cyan-600 hover:bg-cyan-500"
+              className={`flex h-11 shrink-0 items-center justify-center rounded-2xl px-6 text-sm font-bold text-slate-950 transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                loading ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-cyan-400 hover:bg-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
               }`}
             >
               {loading ? "Stop" : "Send"}

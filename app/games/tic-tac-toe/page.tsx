@@ -1,58 +1,111 @@
 "use client";
 
-import { ParticlesBackground } from "@/components/particles-background";
-import { GamesBackLink } from "@/components/games-back-link";
-import { SiteHeader } from "@/components/site-header";
+import { GameShell } from "@/components/game-shell";
+import { soundManager } from "@/lib/audio";
+import { useToast } from "@/components/toast";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-type PlayMode = "local" | "online";
+type PlayMode = "local" | "vs-ai" | "online";
+
+const WINNING_COMBOS = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8],
+  [0, 3, 6], [1, 4, 7], [2, 5, 8],
+  [0, 4, 8], [2, 4, 6],
+];
+
+function checkWinner(squares: (string | null)[]) {
+  for (const [a, b, c] of WINNING_COMBOS) {
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+      return { winner: squares[a], combo: [a, b, c] };
+    }
+  }
+  if (squares.every((square) => square !== null)) return { winner: "Draw", combo: null };
+  return null;
+}
 
 export default function TicTacToeGamePage() {
   const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
   const [currentPlayer, setCurrentPlayer] = useState<"X" | "O">("X");
   const [winner, setWinner] = useState<string | null>(null);
+  const [winningCombo, setWinningCombo] = useState<number[] | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [mode, setMode] = useState<PlayMode>("local");
+  const [mode, setMode] = useState<PlayMode>("vs-ai");
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [roomStatus, setRoomStatus] = useState<string | null>(null);
   const [playerSymbol, setPlayerSymbol] = useState<"X" | "O">("X");
   const [opponentConnected, setOpponentConnected] = useState(false);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerIdRef = useRef(crypto.randomUUID());
+  const { showToast } = useToast();
 
-  const checkWinner = (squares: (string | null)[]) => {
-    const lines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8],
-      [0, 3, 6], [1, 4, 7], [2, 5, 8],
-      [0, 4, 8], [2, 4, 6],
-    ];
-    for (const [a, b, c] of lines) {
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return squares[a];
-      }
+  const getBestAIMove = useCallback((currentBoard: (string | null)[]): number => {
+    const emptyIndices = currentBoard
+      .map((val, idx) => (val === null ? idx : null))
+      .filter((v): v is number => v !== null);
+
+    for (const idx of emptyIndices) {
+      const copy = [...currentBoard];
+      copy[idx] = "O";
+      if (checkWinner(copy)?.winner === "O") return idx;
     }
-    if (squares.every((square) => square !== null)) return "Draw";
-    return null;
-  };
+
+    for (const idx of emptyIndices) {
+      const copy = [...currentBoard];
+      copy[idx] = "X";
+      if (checkWinner(copy)?.winner === "X") return idx;
+    }
+
+    if (emptyIndices.includes(4)) return 4;
+    return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+  }, []);
 
   const handleClick = (index: number) => {
     if (!isPlaying || board[index] || winner) return;
     if (mode === "online" && currentPlayer !== playerSymbol) return;
 
+    soundManager.playPop();
+
     const newBoard = [...board];
     newBoard[index] = currentPlayer;
     setBoard(newBoard);
 
-    const gameWinner = checkWinner(newBoard);
-    if (gameWinner) {
-      setWinner(gameWinner);
+    const winResult = checkWinner(newBoard);
+    if (winResult) {
+      setWinner(winResult.winner);
+      setWinningCombo(winResult.combo);
       setIsPlaying(false);
-      if (mode === "online") syncRoomState(newBoard, currentPlayer === "X" ? "O" : "X", gameWinner);
+      if (winResult.winner === "Draw") soundManager.playBlip();
+      else soundManager.playWin();
+
+      if (mode === "online") syncRoomState(newBoard, currentPlayer === "X" ? "O" : "X", winResult.winner);
     } else {
       const nextPlayer = currentPlayer === "X" ? "O" : "X";
       setCurrentPlayer(nextPlayer);
-      if (mode === "online") syncRoomState(newBoard, nextPlayer, null);
+
+      if (mode === "online") {
+        syncRoomState(newBoard, nextPlayer, null);
+      } else if (mode === "vs-ai" && nextPlayer === "O") {
+        setTimeout(() => {
+          const aiMove = getBestAIMove(newBoard);
+          if (aiMove !== undefined) {
+            soundManager.playPop();
+            const aiBoard = [...newBoard];
+            aiBoard[aiMove] = "O";
+            setBoard(aiBoard);
+
+            const aiWinResult = checkWinner(aiBoard);
+            if (aiWinResult) {
+              setWinner(aiWinResult.winner);
+              setWinningCombo(aiWinResult.combo);
+              setIsPlaying(false);
+              if (aiWinResult.winner === "O") soundManager.playGameOver();
+            } else {
+              setCurrentPlayer("X");
+            }
+          }
+        }, 400);
+      }
     }
   };
 
@@ -83,24 +136,24 @@ export default function TicTacToeGamePage() {
       const { room } = await res.json();
       if (room?.players?.length >= 2 && !opponentConnected) {
         setOpponentConnected(true);
-        setRoomStatus("Opponent joined!");
-        setTimeout(() => setRoomStatus(null), 3000);
+        showToast("Opponent joined the room!", "success");
       }
       const s = room?.state;
       if (s && s.board && s.currentPlayer && s.lastMove !== playerIdRef.current) {
         setBoard(s.board);
         setCurrentPlayer(s.currentPlayer);
         if (s.winner) {
+          const winResult = checkWinner(s.board);
           setWinner(s.winner);
+          setWinningCombo(winResult?.combo || null);
           setIsPlaying(false);
         }
       }
     } catch {}
-  }, [roomCode, opponentConnected]);
+  }, [roomCode, opponentConnected, showToast]);
 
   useEffect(() => {
     if (mode === "online" && roomCode) {
-      pollRoom();
       pollRef.current = setInterval(pollRoom, 1500);
       return () => {
         if (pollRef.current) clearInterval(pollRef.current);
@@ -122,9 +175,10 @@ export default function TicTacToeGamePage() {
     setCurrentPlayer("X");
     setPlayerSymbol("X");
     setWinner(null);
+    setWinningCombo(null);
     setIsPlaying(true);
     setOpponentConnected(false);
-    setRoomStatus(`Room ${code} created — share this code with a friend!`);
+    showToast(`Room ${code} created! Share this code with a friend.`, "info");
   };
 
   const joinRoom = async () => {
@@ -136,7 +190,7 @@ export default function TicTacToeGamePage() {
     });
     const data = await res.json();
     if (data.error) {
-      setRoomStatus(data.error);
+      showToast(data.error, "error");
       return;
     }
     setRoomCode(joinCode.trim().toUpperCase());
@@ -145,168 +199,152 @@ export default function TicTacToeGamePage() {
     setCurrentPlayer("X");
     setPlayerSymbol("O");
     setWinner(null);
+    setWinningCombo(null);
     setIsPlaying(true);
     setOpponentConnected(true);
-    setRoomStatus("Joined! You are O — wait for X to move.");
-    setTimeout(() => setRoomStatus(null), 3000);
+    showToast("Joined room successfully!", "success");
   };
 
-  const resetToLocal = () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    setMode("local");
-    setRoomCode("");
-    setJoinCode("");
-    setOpponentConnected(false);
-    setBoard(Array(9).fill(null));
-    setCurrentPlayer("X");
-    setWinner(null);
-    setIsPlaying(true);
-    setRoomStatus(null);
-    setPlayerSymbol("X");
-  };
-
-  const resetGame = () => {
-    if (mode === "online") {
-      resetToLocal();
-    } else {
-      setBoard(Array(9).fill(null));
-      setCurrentPlayer("X");
-      setWinner(null);
-      setIsPlaying(true);
+  const copyRoomCode = () => {
+    if (roomCode) {
+      navigator.clipboard.writeText(roomCode);
+      showToast("Room code copied to clipboard!", "success");
     }
   };
 
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setCurrentPlayer("X");
+    setWinner(null);
+    setWinningCombo(null);
+    setIsPlaying(true);
+  };
+
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712]">
-      <ParticlesBackground />
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        <SiteHeader title="Tic Tac Toe" />
-        <GamesBackLink />
-
-        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="mx-auto w-full max-w-lg text-center">
-            <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-              ⭕ Tic Tac Toe
-            </h1>
-            <p className="mb-8 text-slate-400">
-              Classic X and O game — play local or invite a friend with a room code!
-            </p>
-
-            {mode === "local" ? (
-              <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+    <GameShell
+      title="Tic Tac Toe"
+      description="Classic X and O — play vs AI, 2-Player local, or online with a room code!"
+      icon="⭕"
+      isPlaying={isPlaying}
+      howToPlayText="Click any cell to place your mark. Match 3 in a row horizontally, vertically, or diagonally to win."
+      customControls={
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex rounded-xl border border-cyan-500/20 bg-slate-900/60 p-1">
+            <button
+              onClick={() => { setMode("vs-ai"); resetGame(); }}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                mode === "vs-ai" ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-cyan-300"
+              }`}
+            >
+              Vs AI
+            </button>
+            <button
+              onClick={() => { setMode("local"); resetGame(); }}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                mode === "local" ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-cyan-300"
+              }`}
+            >
+              2P Local
+            </button>
+            <button
+              onClick={() => { setMode("online"); resetGame(); }}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                mode === "online" ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-cyan-300"
+              }`}
+            >
+              🌐 Online
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="flex flex-col items-center">
+        {mode === "online" && (
+          <div className="mb-6 flex flex-col items-center gap-3 w-full max-w-sm">
+            {!roomCode ? (
+              <div className="flex flex-col gap-3 w-full">
                 <button
                   onClick={createRoom}
-                  className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-6 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-950/60 transition-colors"
+                  className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-4 py-2.5 text-sm font-semibold text-cyan-300 hover:bg-cyan-900/60 transition-colors"
                 >
-                  Create Online Room
+                  Create New Online Room
                 </button>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="Enter room code..."
+                    placeholder="Room Code..."
                     maxLength={6}
-                    className="w-40 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm font-mono text-cyan-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm font-mono text-cyan-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   />
                   <button
                     onClick={joinRoom}
                     disabled={!joinCode.trim()}
-                    className="rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-40 transition-colors"
+                    className="shrink-0 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-40"
                   >
                     Join
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <div className="flex items-center justify-center gap-4">
-                  <p className="text-sm text-cyan-300 font-mono">
-                    Room: <span className="font-bold">{roomCode}</span>
-                  </p>
-                  <p className="text-sm text-slate-400">
-                    {opponentConnected ? `You are ${playerSymbol}` : "Waiting for opponent..."}
-                  </p>
-                  <button
-                    onClick={resetToLocal}
-                    className="rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-950/50 transition-colors"
-                  >
-                    Leave
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {roomStatus && (
-              <div className="mb-4 rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-4 py-2">
-                <p className="text-sm text-cyan-300">{roomStatus}</p>
-              </div>
-            )}
-
-            <div className="mb-6 flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Current Turn</p>
-                <p className="text-2xl font-bold text-cyan-100">{currentPlayer}</p>
-              </div>
-              {winner && (
-                <div className="text-center">
-                  <p className="text-sm text-slate-400">Result</p>
-                  <p className="text-2xl font-bold text-cyan-100">
-                    {winner === "Draw" ? "Draw!" : `${winner} Wins!`}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="mb-6 grid grid-cols-3 gap-3 max-w-[300px] mx-auto">
-              {board.map((cell, index) => (
+              <div className="flex items-center justify-between gap-3 w-full rounded-xl border border-cyan-500/30 bg-cyan-950/30 p-3">
+                <span className="text-sm font-mono text-cyan-200">Room: <strong>{roomCode}</strong></span>
                 <button
-                  key={index}
-                  onClick={() => handleClick(index)}
-                  disabled={
-                    !isPlaying ||
-                    !!cell ||
-                    (mode === "online" && currentPlayer !== playerSymbol)
-                  }
-                  className={`aspect-square rounded-xl border-2 text-4xl font-bold transition-all ${
-                    cell
-                      ? "border-cyan-500/50 bg-cyan-950/50"
-                      : "border-slate-700 bg-slate-900/50 hover:border-cyan-500/30"
-                  } ${
-                    !isPlaying || (mode === "online" && currentPlayer !== playerSymbol)
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
+                  onClick={copyRoomCode}
+                  className="rounded-lg bg-cyan-900/60 px-3 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-800/60"
                 >
-                  {cell}
+                  Copy Code
                 </button>
-              ))}
-            </div>
-
-            {winner && (
-              <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">
-                  {winner === "Draw" ? "It's a Draw!" : `${winner} Wins!`}
-                </p>
               </div>
             )}
-
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={resetGame}
-                className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500"
-              >
-                {winner ? "Play Again" : mode === "online" ? "Leave & New Game" : "Restart"}
-              </button>
-            </div>
-
-            <div className="mt-8 text-sm text-slate-500">
-              <p className="mb-2 font-medium text-slate-400">How to Play:</p>
-              <p>Click on a cell to place your mark. Get three in a row to win! In online mode, share the 6-letter room code with a friend.</p>
-            </div>
           </div>
-        </main>
+        )}
+
+        <div className="mb-4 text-center">
+          <p className="text-sm text-slate-400">Current Turn: <span className="font-bold text-cyan-300">{currentPlayer}</span></p>
+        </div>
+
+        <div className="relative grid grid-cols-3 gap-3 max-w-[280px] p-3 rounded-2xl bg-slate-950 border border-cyan-500/30 shadow-2xl">
+          {board.map((cell, index) => {
+            const isWinningCell = winningCombo?.includes(index);
+            return (
+              <button
+                key={index}
+                onClick={() => handleClick(index)}
+                disabled={!isPlaying || !!cell || (mode === "online" && currentPlayer !== playerSymbol)}
+                aria-label={`Cell ${index + 1}`}
+                className={`aspect-square h-20 w-20 rounded-2xl border-2 text-4xl font-bold flex items-center justify-center transition-all ${
+                  isWinningCell
+                    ? "border-emerald-400 bg-emerald-950/80 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.5)] scale-105"
+                    : cell
+                    ? "border-cyan-500/50 bg-cyan-950/60 text-cyan-100"
+                    : "border-slate-700/80 bg-slate-900/60 hover:border-cyan-500/50 hover:bg-slate-900"
+                }`}
+              >
+                {cell}
+              </button>
+            );
+          })}
+        </div>
+
+        {winner && (
+          <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-4 text-center">
+            <p className="text-xl font-bold text-cyan-300">
+              {winner === "Draw" ? "🤝 It's a Draw!" : `🎉 ${winner} Wins!`}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={resetGame}
+            className="rounded-2xl bg-cyan-500 px-8 py-3 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 hover:scale-105"
+          >
+            Restart Board
+          </button>
+        </div>
       </div>
-    </div>
+    </GameShell>
   );
 }

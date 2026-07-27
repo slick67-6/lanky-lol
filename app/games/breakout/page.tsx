@@ -1,334 +1,441 @@
 "use client";
 
-import { ParticlesBackground } from "@/components/particles-background";
-import { GamesBackLink } from "@/components/games-back-link";
-import { SiteHeader } from "@/components/site-header";
-import { useEffect, useRef, useState } from "react";
+import { GameShell } from "@/components/game-shell";
+import { soundManager } from "@/lib/audio";
+import { useHighScore } from "@/lib/use-high-score";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+interface Brick {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  status: boolean;
+  color: string;
+}
+
+interface PowerUp {
+  x: number;
+  y: number;
+  type: "expand" | "extra-life" | "multiball";
+  active: boolean;
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  color: string;
+}
+
+const CANVAS_WIDTH = 480;
+const CANVAS_HEIGHT = 420;
+const BRICK_ROWS = 5;
+const BRICK_COLS = 8;
+const BRICK_WIDTH = 50;
+const BRICK_HEIGHT = 18;
+const BRICK_PADDING = 8;
+const BRICK_OFFSET_TOP = 40;
+const BRICK_OFFSET_LEFT = 12;
+
+const ROW_COLORS = ["#f43f5e", "#fb923c", "#fbbf24", "#34d399", "#22d3ee"];
 
 export default function BreakoutGamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [combo, setCombo] = useState(1);
   const [gameOver, setGameOver] = useState(false);
+  const [won, setWon] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [highScore, setHighScore] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const paddleRef = useRef({ x: 0, width: 80, height: 10 });
-  const ballRef = useRef({ x: 0, y: 0, dx: 4, dy: -4, radius: 8 });
-  const bricksRef = useRef<{ x: number; y: number; status: boolean }[]>([]);
-  const gameLoopRef = useRef<number | null>(null);
+  const { highScore, updateHighScore } = useHighScore("breakout", 0);
 
-  const CANVAS_WIDTH = 480;
-  const CANVAS_HEIGHT = 400;
-  const BRICK_ROWS = 5;
-  const BRICK_COLS = 8;
-  const BRICK_WIDTH = 50;
-  const BRICK_HEIGHT = 20;
-  const BRICK_PADDING = 10;
-  const BRICK_OFFSET_TOP = 30;
-  const BRICK_OFFSET_LEFT = 35;
+  const paddleRef = useRef({ x: 200, width: 90, height: 12 });
+  const ballsRef = useRef<{ x: number; y: number; dx: number; dy: number; radius: number }[]>([
+    { x: 240, y: 350, dx: 4, dy: -4, radius: 7 },
+  ]);
+  const bricksRef = useRef<Brick[]>([]);
+  const powerUpsRef = useRef<PowerUp[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
+  const keysRef = useRef<{ [key: string]: boolean }>({});
+  const animFrameRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    initializeBricks();
-    paddleRef.current.x = (CANVAS_WIDTH - paddleRef.current.width) / 2;
-    ballRef.current = {
-      x: CANVAS_WIDTH / 2,
-      y: CANVAS_HEIGHT - 30,
-      dx: 4,
-      dy: -4,
-      radius: 8,
-    };
-
-    draw(ctx);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying || gameOver) return;
-
-      if (e.key === "ArrowLeft" || e.key === "a") {
-        e.preventDefault();
-        paddleRef.current.x = Math.max(0, paddleRef.current.x - 20);
-      }
-      if (e.key === "ArrowRight" || e.key === "d") {
-        e.preventDefault();
-        paddleRef.current.x = Math.min(
-          CANVAS_WIDTH - paddleRef.current.width,
-          paddleRef.current.x + 20
-        );
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, gameOver]);
-
-  const initializeBricks = () => {
-    const bricks: { x: number; y: number; status: boolean }[] = [];
-    for (let c = 0; c < BRICK_COLS; c++) {
-      for (let r = 0; r < BRICK_ROWS; r++) {
+  const initializeBricks = useCallback(() => {
+    const bricks: Brick[] = [];
+    for (let r = 0; r < BRICK_ROWS; r++) {
+      for (let c = 0; c < BRICK_COLS; c++) {
         bricks.push({
           x: c * (BRICK_WIDTH + BRICK_PADDING) + BRICK_OFFSET_LEFT,
           y: r * (BRICK_HEIGHT + BRICK_PADDING) + BRICK_OFFSET_TOP,
+          width: BRICK_WIDTH,
+          height: BRICK_HEIGHT,
           status: true,
+          color: ROW_COLORS[r % ROW_COLORS.length],
         });
       }
     }
     bricksRef.current = bricks;
+  }, []);
+
+  const createParticles = (x: number, y: number, color: string) => {
+    for (let i = 0; i < 8; i++) {
+      particlesRef.current.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5,
+        life: 1.0,
+        color,
+      });
+    }
   };
 
-  const draw = (ctx: CanvasRenderingContext2D) => {
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  const draw = useCallback((ctx: CanvasRenderingContext2D) => {
+    ctx.fillStyle = "#030712";
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw bricks
-    bricksRef.current.forEach((brick) => {
-      if (brick.status) {
-        ctx.fillStyle = "#22d3ee";
-        ctx.shadowColor = "#22d3ee";
-        ctx.shadowBlur = 5;
-        ctx.fillRect(brick.x, brick.y, BRICK_WIDTH, BRICK_HEIGHT);
+    particlesRef.current.forEach((p) => {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1.0;
+
+    bricksRef.current.forEach((b) => {
+      if (b.status) {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.roundRect(b.x, b.y, b.width, b.height, 4);
+        ctx.fill();
         ctx.shadowBlur = 0;
       }
     });
 
-    // Draw paddle
-    ctx.fillStyle = "#22d3ee";
-    ctx.shadowColor = "#22d3ee";
-    ctx.shadowBlur = 10;
-    ctx.fillRect(
-      paddleRef.current.x,
-      CANVAS_HEIGHT - paddleRef.current.height - 10,
-      paddleRef.current.width,
-      paddleRef.current.height
-    );
-    ctx.shadowBlur = 0;
-
-    // Draw ball
-    ctx.beginPath();
-    ctx.arc(ballRef.current.x, ballRef.current.y, ballRef.current.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#22d3ee";
-    ctx.shadowColor = "#22d3ee";
-    ctx.shadowBlur = 10;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  };
-
-  const update = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Move ball
-    ballRef.current.x += ballRef.current.dx;
-    ballRef.current.y += ballRef.current.dy;
-
-    // Wall collision
-    if (ballRef.current.x + ballRef.current.radius > CANVAS_WIDTH || ballRef.current.x - ballRef.current.radius < 0) {
-      ballRef.current.dx = -ballRef.current.dx;
-    }
-    if (ballRef.current.y - ballRef.current.radius < 0) {
-      ballRef.current.dy = -ballRef.current.dy;
-    }
-
-    // Paddle collision
-    if (
-      ballRef.current.y + ballRef.current.radius > CANVAS_HEIGHT - paddleRef.current.height - 10 &&
-      ballRef.current.x > paddleRef.current.x &&
-      ballRef.current.x < paddleRef.current.x + paddleRef.current.width
-    ) {
-      ballRef.current.dy = -ballRef.current.dy;
-    }
-
-    // Bottom collision (game over)
-    if (ballRef.current.y + ballRef.current.radius > CANVAS_HEIGHT) {
-      setGameOver(true);
-      setIsPlaying(false);
-      if (score > highScore) setHighScore(score);
-      return;
-    }
-
-    // Brick collision
-    bricksRef.current.forEach((brick) => {
-      if (brick.status) {
-        const ballLeft = ballRef.current.x - ballRef.current.radius;
-        const ballRight = ballRef.current.x + ballRef.current.radius;
-        const ballTop = ballRef.current.y - ballRef.current.radius;
-        const ballBottom = ballRef.current.y + ballRef.current.radius;
-        const brickLeft = brick.x;
-        const brickRight = brick.x + BRICK_WIDTH;
-        const brickTop = brick.y;
-        const brickBottom = brick.y + BRICK_HEIGHT;
-
-        if (
-          ballRight > brickLeft &&
-          ballLeft < brickRight &&
-          ballBottom > brickTop &&
-          ballTop < brickBottom
-        ) {
-          const overlapLeft = ballRight - brickLeft;
-          const overlapRight = brickRight - ballLeft;
-          const overlapTop = ballBottom - brickTop;
-          const overlapBottom = brickBottom - ballTop;
-          const minOverlapX = Math.min(overlapLeft, overlapRight);
-          const minOverlapY = Math.min(overlapTop, overlapBottom);
-
-          if (minOverlapX < minOverlapY) {
-            ballRef.current.dx = -ballRef.current.dx;
-          } else {
-            ballRef.current.dy = -ballRef.current.dy;
-          }
-          brick.status = false;
-          setScore((prev) => prev + 10);
-        }
+    powerUpsRef.current.forEach((p) => {
+      if (p.active) {
+        ctx.fillStyle = p.type === "expand" ? "#34d399" : p.type === "extra-life" ? "#f43f5e" : "#a855f7";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fill();
       }
     });
 
-    // Check win condition
-    if (bricksRef.current.every((brick) => !brick.status)) {
-      setGameOver(true);
-      setIsPlaying(false);
-      if (score > highScore) setHighScore(score);
-    }
+    const p = paddleRef.current;
+    ctx.fillStyle = "#22d3ee";
+    ctx.shadowColor = "#22d3ee";
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.roundRect(p.x, CANVAS_HEIGHT - p.height - 10, p.width, p.height, 6);
+    ctx.fill();
+    ctx.shadowBlur = 0;
 
-    draw(ctx);
-  };
+    ballsRef.current.forEach((ball) => {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#f43f5e";
+      ctx.shadowColor = "#f43f5e";
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isPlaying || isPaused || gameOver) return;
+
+    let active = true;
+
+    const update = () => {
+      if (!active) return;
+
+      const paddleSpeed = 8;
+      if (keysRef.current["ArrowLeft"] || keysRef.current["a"] || keysRef.current["A"]) {
+        paddleRef.current.x = Math.max(0, paddleRef.current.x - paddleSpeed);
+      }
+      if (keysRef.current["ArrowRight"] || keysRef.current["d"] || keysRef.current["D"]) {
+        paddleRef.current.x = Math.min(
+          CANVAS_WIDTH - paddleRef.current.width,
+          paddleRef.current.x + paddleSpeed
+        );
+      }
+
+      particlesRef.current.forEach((pt) => {
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life -= 0.04;
+      });
+      particlesRef.current = particlesRef.current.filter((pt) => pt.life > 0);
+
+      powerUpsRef.current.forEach((pw) => {
+        if (pw.active) {
+          pw.y += 2.5;
+          const paddleY = CANVAS_HEIGHT - paddleRef.current.height - 10;
+          if (
+            pw.y >= paddleY &&
+            pw.x >= paddleRef.current.x &&
+            pw.x <= paddleRef.current.x + paddleRef.current.width
+          ) {
+            pw.active = false;
+            soundManager.playPowerup();
+            if (pw.type === "expand") {
+              paddleRef.current.width = Math.min(150, paddleRef.current.width + 30);
+            } else if (pw.type === "extra-life") {
+              setLives((l) => l + 1);
+            } else if (pw.type === "multiball" && ballsRef.current.length > 0) {
+              const b = ballsRef.current[0];
+              ballsRef.current.push({ x: b.x, y: b.y, dx: -b.dx, dy: b.dy, radius: b.radius });
+            }
+          }
+        }
+      });
+
+      ballsRef.current.forEach((ball) => {
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        if (ball.x + ball.radius > CANVAS_WIDTH || ball.x - ball.radius < 0) {
+          ball.dx = -ball.dx;
+          soundManager.playPop();
+        }
+        if (ball.y - ball.radius < 0) {
+          ball.dy = -ball.dy;
+          soundManager.playPop();
+        }
+
+        const paddleY = CANVAS_HEIGHT - paddleRef.current.height - 10;
+        if (
+          ball.dy > 0 &&
+          ball.y + ball.radius >= paddleY &&
+          ball.x >= paddleRef.current.x &&
+          ball.x <= paddleRef.current.x + paddleRef.current.width
+        ) {
+          const hitOffset = (ball.x - (paddleRef.current.x + paddleRef.current.width / 2)) / (paddleRef.current.width / 2);
+          const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+          const maxAngle = (5 * Math.PI) / 12;
+          const bounceAngle = hitOffset * maxAngle;
+
+          ball.dx = speed * Math.sin(bounceAngle);
+          ball.dy = -speed * Math.cos(bounceAngle);
+          soundManager.playHit();
+          setCombo(1);
+        }
+
+        bricksRef.current.forEach((brick) => {
+          if (brick.status) {
+            if (
+              ball.x + ball.radius > brick.x &&
+              ball.x - ball.radius < brick.x + brick.width &&
+              ball.y + ball.radius > brick.y &&
+              ball.y - ball.radius < brick.y + brick.height
+            ) {
+              brick.status = false;
+              ball.dy = -ball.dy;
+
+              createParticles(brick.x + brick.width / 2, brick.y + brick.height / 2, brick.color);
+              soundManager.playBlip();
+
+              setCombo((c) => {
+                const nextCombo = c + 1;
+                if (nextCombo > 2) soundManager.playCombo();
+                setScore((s) => {
+                  const added = 10 * nextCombo;
+                  const nextScore = s + added;
+                  updateHighScore(nextScore);
+                  return nextScore;
+                });
+                return nextCombo;
+              });
+
+              if (Math.random() < 0.25) {
+                const types: ("expand" | "extra-life" | "multiball")[] = ["expand", "extra-life", "multiball"];
+                powerUpsRef.current.push({
+                  x: brick.x + brick.width / 2,
+                  y: brick.y + brick.height / 2,
+                  type: types[Math.floor(Math.random() * types.length)],
+                  active: true,
+                });
+              }
+            }
+          }
+        });
+      });
+
+      ballsRef.current = ballsRef.current.filter((b) => b.y - b.radius < CANVAS_HEIGHT);
+
+      if (ballsRef.current.length === 0) {
+        soundManager.playExplosion();
+        setLives((prev) => {
+          if (prev <= 1) {
+            setGameOver(true);
+            setIsPlaying(false);
+            soundManager.playGameOver();
+            return 0;
+          } else {
+            ballsRef.current = [
+              {
+                x: paddleRef.current.x + paddleRef.current.width / 2,
+                y: CANVAS_HEIGHT - 35,
+                dx: 4,
+                dy: -4,
+                radius: 7,
+              },
+            ];
+            return prev - 1;
+          }
+        });
+      }
+
+      if (bricksRef.current.every((b) => !b.status)) {
+        setWon(true);
+        setGameOver(true);
+        setIsPlaying(false);
+        soundManager.playWin();
+      }
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) draw(ctx);
+      }
+
+      animFrameRef.current = requestAnimationFrame(update);
+    };
+
+    animFrameRef.current = requestAnimationFrame(update);
+
+    return () => {
+      active = false;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isPlaying, isPaused, gameOver, draw, updateHighScore]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      keysRef.current[e.key] = true;
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current[e.key] = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   const startGame = () => {
     setIsPlaying(true);
+    setIsPaused(false);
     setGameOver(false);
-    initializeBricks();
-    paddleRef.current.x = (CANVAS_WIDTH - paddleRef.current.width) / 2;
-    ballRef.current = {
-      x: CANVAS_WIDTH / 2,
-      y: CANVAS_HEIGHT - 30,
-      dx: 4,
-      dy: -4,
-      radius: 8,
-    };
+    setWon(false);
     setScore(0);
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    draw(ctx);
-
-    gameLoopRef.current = window.setInterval(update, 16);
+    setLives(3);
+    setCombo(1);
+    paddleRef.current = { x: 200, width: 90, height: 12 };
+    ballsRef.current = [{ x: 240, y: 350, dx: 4, dy: -4, radius: 7 }];
+    powerUpsRef.current = [];
+    particlesRef.current = [];
+    initializeBricks();
   };
 
-  const stopGame = () => {
-    setIsPlaying(false);
-    if (gameLoopRef.current) {
-      clearInterval(gameLoopRef.current);
-    }
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isPlaying) return;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    paddleRef.current.x = Math.max(
+      0,
+      Math.min(CANVAS_WIDTH - paddleRef.current.width, mouseX - paddleRef.current.width / 2)
+    );
   };
 
-  const resetGame = () => {
-    stopGame();
-    setGameOver(false);
-    setScore(0);
-    initializeBricks();
-    paddleRef.current.x = (CANVAS_WIDTH - paddleRef.current.width) / 2;
-    ballRef.current = {
-      x: CANVAS_WIDTH / 2,
-      y: CANVAS_HEIGHT - 30,
-      dx: 4,
-      dy: -4,
-      radius: 8,
-    };
-
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    draw(ctx);
+    if (!canvas || !isPlaying) return;
+    const rect = canvas.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    paddleRef.current.x = Math.max(
+      0,
+      Math.min(CANVAS_WIDTH - paddleRef.current.width, touchX - paddleRef.current.width / 2)
+    );
   };
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712]">
-      <ParticlesBackground />
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        <SiteHeader title="Breakout" />
-        <GamesBackLink />
+    <GameShell
+      title="Breakout"
+      description="Break all bricks, collect powerups, build up combo multipliers, and conquer the stage!"
+      icon="🧱"
+      score={score}
+      highScore={highScore}
+      isPlaying={isPlaying}
+      isPaused={isPaused}
+      onPauseToggle={() => setIsPaused(!isPaused)}
+      howToPlayText="Use Arrow Keys, A/D, or mouse/touch drag to move the paddle. Hitting multiple bricks without bouncing off the paddle builds your combo multiplier. Catch glowing falling orbs for powerups!"
+      customControls={
+        <div className="flex items-center gap-6 text-sm font-semibold text-cyan-200">
+          <span>Lives: {"❤️".repeat(lives)}</span>
+          <span>Combo: <span className="text-amber-400 font-bold">{combo}x</span></span>
+        </div>
+      }
+      mobileControls={{
+        onLeft: () => {
+          paddleRef.current.x = Math.max(0, paddleRef.current.x - 30);
+        },
+        onRight: () => {
+          paddleRef.current.x = Math.min(
+            CANVAS_WIDTH - paddleRef.current.width,
+            paddleRef.current.x + 30
+          );
+        },
+      }}
+    >
+      <div className="flex flex-col items-center">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          onMouseMove={handleMouseMove}
+          onTouchMove={handleTouchMove}
+          className="max-w-full rounded-2xl border-2 border-cyan-500/30 bg-slate-950 shadow-2xl [touch-action:none]"
+        />
 
-        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="mx-auto w-full max-w-lg text-center">
-            <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-              🧱 Breakout
-            </h1>
-            <p className="mb-8 text-slate-400">
-              Break all the bricks with the ball. Don't let it drop!
+        {gameOver && (
+          <div className="mt-6 w-full max-w-sm rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-4 text-center">
+            <p className="text-xl font-bold text-cyan-300">
+              {won ? "🎉 Stage Cleared!" : "💥 Game Over!"}
             </p>
-
-            <div className="mb-6 flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Score</p>
-                <p className="text-2xl font-bold text-cyan-100">{score}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-slate-400">High Score</p>
-                <p className="text-2xl font-bold text-cyan-100">{highScore}</p>
-              </div>
-            </div>
-
-            <div className="mb-6 flex justify-center">
-              <canvas
-                ref={canvasRef}
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
-                className="rounded-xl border-2 border-cyan-500/30 bg-slate-950"
-              />
-            </div>
-
-            {gameOver && (
-              <div className="mb-6 rounded-xl border border-red-500/30 bg-red-950/20 p-4">
-                <p className="text-lg font-semibold text-red-400">Game Over!</p>
-                <p className="text-slate-400">Final Score: {score}</p>
-              </div>
-            )}
-
-            <div className="flex justify-center gap-4">
-              {!isPlaying ? (
-                <button
-                  onClick={startGame}
-                  className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500"
-                >
-                  {gameOver ? "Play Again" : "Start Game"}
-                </button>
-              ) : (
-                <button
-                  onClick={stopGame}
-                  className="rounded-xl bg-rose-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-rose-500"
-                >
-                  Stop Game
-                </button>
-              )}
-              <button
-                onClick={resetGame}
-                className="rounded-xl border border-cyan-500/30 px-8 py-3 text-base font-medium text-cyan-300 transition-colors hover:bg-cyan-950/40"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="mt-8 text-sm text-slate-500">
-              <p className="mb-2 font-medium text-slate-400">Controls:</p>
-              <div className="flex justify-center gap-4">
-                <span className="rounded border border-slate-700 px-3 py-1">← → or A D</span>
-              </div>
-            </div>
+            <p className="text-sm text-slate-300">Final Score: {score}</p>
           </div>
-        </main>
+        )}
+
+        <div className="mt-6 flex gap-4">
+          {!isPlaying ? (
+            <button
+              onClick={startGame}
+              className="rounded-2xl bg-cyan-500 px-8 py-3 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 hover:scale-105"
+            >
+              {gameOver ? "Play Again" : "Start Game"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsPlaying(false)}
+              className="rounded-2xl bg-rose-600 px-8 py-3 text-base font-semibold text-white hover:bg-rose-500"
+            >
+              Stop Game
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </GameShell>
   );
 }

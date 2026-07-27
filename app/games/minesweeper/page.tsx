@@ -1,211 +1,308 @@
 "use client";
 
-import { ParticlesBackground } from "@/components/particles-background";
-import { GamesBackLink } from "@/components/games-back-link";
-import { SiteHeader } from "@/components/site-header";
-import { useEffect, useState } from "react";
+import { GameShell } from "@/components/game-shell";
+import { soundManager } from "@/lib/audio";
+import { useHighScore } from "@/lib/use-high-score";
+import { useState, useEffect, useCallback, useRef } from "react";
 
-export default function MinesweeperGamePage() {
-  const GRID_SIZE = 10;
-  const MINE_COUNT = 10;
+type Difficulty = "easy" | "medium" | "hard";
 
-  const [grid, setGrid] = useState<{ isMine: boolean; revealed: boolean; flagged: boolean; neighborMines: number }[][]>([]);
-  const [gameOver, setGameOver] = useState(false);
-  const [won, setWon] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+interface DifficultyConfig {
+  rows: number;
+  cols: number;
+  mines: number;
+}
 
-  const initializeGrid = () => {
-    const newGrid: { isMine: boolean; revealed: boolean; flagged: boolean; neighborMines: number }[][] = [];
-    
-    // Create empty grid
-    for (let i = 0; i < GRID_SIZE; i++) {
-      newGrid[i] = [];
-      for (let j = 0; j < GRID_SIZE; j++) {
-        newGrid[i][j] = { isMine: false, revealed: false, flagged: false, neighborMines: 0 };
-      }
+const CONFIGS: Record<Difficulty, DifficultyConfig> = {
+  easy: { rows: 9, cols: 9, mines: 10 },
+  medium: { rows: 12, cols: 12, mines: 20 },
+  hard: { rows: 16, cols: 16, mines: 40 },
+};
+
+interface Cell {
+  isMine: boolean;
+  revealed: boolean;
+  flagged: boolean;
+  neighborMines: number;
+}
+
+function createEmptyGrid(rCount: number, cCount: number): Cell[][] {
+  const grid: Cell[][] = [];
+  for (let i = 0; i < rCount; i++) {
+    grid[i] = [];
+    for (let j = 0; j < cCount; j++) {
+      grid[i][j] = { isMine: false, revealed: false, flagged: false, neighborMines: 0 };
     }
+  }
+  return grid;
+}
 
-    // Place mines randomly
-    let minesPlaced = 0;
-    while (minesPlaced < MINE_COUNT) {
-      const row = Math.floor(Math.random() * GRID_SIZE);
-      const col = Math.floor(Math.random() * GRID_SIZE);
-      if (!newGrid[row][col].isMine) {
-        newGrid[row][col].isMine = true;
-        minesPlaced++;
-      }
+function populateMines(
+  grid: Cell[][],
+  rows: number,
+  cols: number,
+  mineCount: number,
+  safeRow: number,
+  safeCol: number
+): Cell[][] {
+  const populated = grid.map((r) => r.map((c) => ({ ...c })));
+  let placed = 0;
+
+  while (placed < mineCount) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    const isNearSafe = Math.abs(r - safeRow) <= 1 && Math.abs(c - safeCol) <= 1;
+
+    if (!populated[r][c].isMine && !isNearSafe) {
+      populated[r][c].isMine = true;
+      placed++;
     }
+  }
 
-    // Calculate neighbor mines
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (!newGrid[i][j].isMine) {
-          let count = 0;
-          for (let di = -1; di <= 1; di++) {
-            for (let dj = -1; dj <= 1; dj++) {
-              const ni = i + di;
-              const nj = j + dj;
-              if (ni >= 0 && ni < GRID_SIZE && nj >= 0 && nj < GRID_SIZE && newGrid[ni][nj].isMine) {
-                count++;
-              }
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      if (!populated[i][j].isMine) {
+        let count = 0;
+        for (let di = -1; di <= 1; di++) {
+          for (let dj = -1; dj <= 1; dj++) {
+            const ni = i + di;
+            const nj = j + dj;
+            if (ni >= 0 && ni < rows && nj >= 0 && nj < cols && populated[ni][nj].isMine) {
+              count++;
             }
           }
-          newGrid[i][j].neighborMines = count;
         }
+        populated[i][j].neighborMines = count;
       }
     }
+  }
 
-    setGrid(newGrid);
+  return populated;
+}
+
+export default function MinesweeperGamePage() {
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [grid, setGrid] = useState<Cell[][]>(() => createEmptyGrid(9, 9));
+  const [flagMode, setFlagMode] = useState<boolean>(false);
+  const [isFirstClick, setIsFirstClick] = useState<boolean>(true);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [won, setWon] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [timerSeconds, setTimerSeconds] = useState<number>(0);
+
+  const timerRef = useRef<number | null>(null);
+
+  const { rows, cols, mines: mineCount } = CONFIGS[difficulty];
+  const { highScore: bestTime, updateHighScore: updateBestTime } = useHighScore(`minesweeper_${difficulty}`, 999);
+
+  const handleDifficultyChange = (diff: Difficulty) => {
+    setDifficulty(diff);
+    const cfg = CONFIGS[diff];
+    setGrid(createEmptyGrid(cfg.rows, cfg.cols));
+    setIsFirstClick(true);
     setGameOver(false);
     setWon(false);
     setIsPlaying(true);
+    setTimerSeconds(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const restartGrid = useCallback(() => {
+    const cfg = CONFIGS[difficulty];
+    setGrid(createEmptyGrid(cfg.rows, cfg.cols));
+    setIsFirstClick(true);
+    setGameOver(false);
+    setWon(false);
+    setIsPlaying(true);
+    setTimerSeconds(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, [difficulty]);
+
+  useEffect(() => {
+    if (isPlaying && !isFirstClick && !gameOver) {
+      timerRef.current = window.setInterval(() => {
+        setTimerSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isPlaying, isFirstClick, gameOver]);
+
+  const toggleFlag = (row: number, col: number, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (!isPlaying || gameOver || grid[row][col].revealed) return;
+
+    soundManager.playBlip();
+    const nextGrid = grid.map((r) => r.map((c) => ({ ...c })));
+    nextGrid[row][col].flagged = !nextGrid[row][col].flagged;
+    setGrid(nextGrid);
   };
 
   const revealCell = (row: number, col: number) => {
-    if (!isPlaying || gameOver || grid[row][col].revealed || grid[row][col].flagged) return;
+    if (!isPlaying || gameOver || grid[row][col].revealed) return;
 
-    const newGrid = [...grid.map(row => [...row])];
+    if (flagMode) {
+      toggleFlag(row, col);
+      return;
+    }
 
-    const reveal = (r: number, c: number) => {
-      if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
-      if (newGrid[r][c].revealed || newGrid[r][c].flagged) return;
+    if (grid[row][col].flagged) return;
 
-      newGrid[r][c].revealed = true;
+    let currentGrid = grid;
+    if (isFirstClick) {
+      currentGrid = populateMines(grid, rows, cols, mineCount, row, col);
+      setIsFirstClick(false);
+    }
 
-      if (newGrid[r][c].isMine) {
+    const nextGrid = currentGrid.map((r) => r.map((c) => ({ ...c })));
+
+    const floodFill = (r: number, c: number) => {
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+      if (nextGrid[r][c].revealed || nextGrid[r][c].flagged) return;
+
+      nextGrid[r][c].revealed = true;
+
+      if (nextGrid[r][c].isMine) {
         setGameOver(true);
         setWon(false);
         setIsPlaying(false);
-        // Reveal all mines
-        for (let i = 0; i < GRID_SIZE; i++) {
-          for (let j = 0; j < GRID_SIZE; j++) {
-            if (newGrid[i][j].isMine) {
-              newGrid[i][j].revealed = true;
-            }
+        soundManager.playExplosion();
+
+        for (let i = 0; i < rows; i++) {
+          for (let j = 0; j < cols; j++) {
+            if (nextGrid[i][j].isMine) nextGrid[i][j].revealed = true;
           }
         }
-        setGrid(newGrid);
         return;
       }
 
-      if (newGrid[r][c].neighborMines === 0) {
+      if (nextGrid[r][c].neighborMines === 0) {
         for (let di = -1; di <= 1; di++) {
           for (let dj = -1; dj <= 1; dj++) {
-            reveal(r + di, c + dj);
+            floodFill(r + di, c + dj);
           }
         }
       }
     };
 
-    reveal(row, col);
-    setGrid(newGrid);
+    soundManager.playPop();
+    floodFill(row, col);
+    setGrid(nextGrid);
 
-    // Check win condition
-    const revealedCount = newGrid.flat().filter(cell => cell.revealed).length;
-    if (revealedCount === GRID_SIZE * GRID_SIZE - MINE_COUNT) {
+    const revealedCount = nextGrid.flat().filter((cell) => cell.revealed).length;
+    if (revealedCount === rows * cols - mineCount) {
       setWon(true);
       setGameOver(true);
       setIsPlaying(false);
+      soundManager.playWin();
+      updateBestTime(timerSeconds);
     }
   };
 
-  const toggleFlag = (row: number, col: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!isPlaying || gameOver || grid[row][col].revealed) return;
-
-    const newGrid = [...grid.map(row => [...row])];
-    newGrid[row][col].flagged = !newGrid[row][col].flagged;
-    setGrid(newGrid);
+  const getCellColor = (cell: Cell) => {
+    if (!cell.revealed) return "bg-slate-900/80 border-slate-700/80 hover:border-cyan-400/50";
+    if (cell.isMine) return "bg-rose-950/80 border-rose-500/50";
+    const colors = [
+      "", "text-cyan-400", "text-emerald-400", "text-amber-400",
+      "text-orange-400", "text-rose-400", "text-purple-400", "text-pink-400"
+    ];
+    return `bg-slate-800/80 border-slate-600/60 ${colors[cell.neighborMines] || ""}`;
   };
 
-  const getCellContent = (cell: { isMine: boolean; revealed: boolean; flagged: boolean; neighborMines: number }) => {
-    if (cell.flagged) return "🚩";
-    if (!cell.revealed) return "";
-    if (cell.isMine) return "💣";
-    if (cell.neighborMines === 0) return "";
-    return cell.neighborMines.toString();
-  };
-
-  const getCellColor = (cell: { isMine: boolean; revealed: boolean; flagged: boolean; neighborMines: number }) => {
-    if (!cell.revealed) return "bg-slate-900/50 border-slate-700";
-    if (cell.isMine) return "bg-red-950/50 border-red-500/50";
-    const colors = ["", "text-cyan-400", "text-green-400", "text-yellow-400", "text-orange-400", "text-red-400", "text-purple-400", "text-pink-400", "text-slate-400"];
-    return `bg-slate-800/50 border-slate-600 ${colors[cell.neighborMines]}`;
-  };
-
-  useEffect(() => {
-    initializeGrid();
-  }, []);
+  const remainingMines = mineCount - grid.flat().filter((c) => c.flagged).length;
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-[#030712]">
-      <ParticlesBackground />
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        <SiteHeader title="Minesweeper" />
-        <GamesBackLink />
-
-        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-          <div className="mx-auto w-full max-w-lg text-center">
-            <h1 className="mb-4 font-[family-name:var(--font-syne)] text-3xl font-bold text-cyan-50 sm:text-4xl">
-              💣 Minesweeper
-            </h1>
-            <p className="mb-8 text-slate-400">
-              Find all mines without detonating them. Use logic and luck!
-            </p>
-
-            <div className="mb-6 flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Mines</p>
-                <p className="text-2xl font-bold text-cyan-100">{MINE_COUNT}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-slate-400">Status</p>
-                <p className="text-2xl font-bold text-cyan-100">
-                  {won ? "Won!" : gameOver ? "Lost" : isPlaying ? "Playing" : "Ready"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-6 inline-grid grid-cols-10 gap-1">
-              {grid.map((row, rowIndex) =>
-                row.map((cell, colIndex) => (
-                  <button
-                    key={`${rowIndex}-${colIndex}`}
-                    onClick={() => revealCell(rowIndex, colIndex)}
-                    onContextMenu={(e) => toggleFlag(rowIndex, colIndex, e)}
-                    disabled={!isPlaying}
-                    className={`aspect-square rounded border-2 text-sm font-bold transition-all ${getCellColor(cell)} ${!isPlaying ? "opacity-50" : ""}`}
-                  >
-                    {getCellContent(cell)}
-                  </button>
-                ))
-              )}
-            </div>
-
-            {gameOver && (
-              <div className="mb-6 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4">
-                <p className="text-lg font-semibold text-cyan-400">
-                  {won ? "🎉 You Won!" : "💥 Game Over!"}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-center gap-4">
+    <GameShell
+      title="Minesweeper"
+      description="Sweep the field using logic! Guaranteed safe first click & mobile flag mode."
+      icon="💣"
+      score={timerSeconds}
+      highScore={bestTime === 999 ? 0 : bestTime}
+      scoreLabel="Time (s)"
+      highScoreLabel="Best (s)"
+      isPlaying={isPlaying}
+      howToPlayText="Click a cell to reveal it. Numbers indicate adjacent mines. Toggle Flag Mode or right-click to place flags on suspected mine locations."
+      customControls={
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex rounded-xl border border-cyan-500/20 bg-slate-900/60 p-1">
+            {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
               <button
-                onClick={initializeGrid}
-                className="rounded-xl bg-cyan-600 px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-cyan-500"
+                key={d}
+                onClick={() => handleDifficultyChange(d)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold uppercase transition-all ${
+                  difficulty === d ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-cyan-300"
+                }`}
               >
-                {gameOver ? "Play Again" : "Restart"}
+                {d}
               </button>
-            </div>
-
-            <div className="mt-8 text-sm text-slate-500">
-              <p className="mb-2 font-medium text-slate-400">How to Play:</p>
-              <p>Left-click to reveal cells. Right-click to flag mines. Numbers indicate adjacent mines.</p>
-            </div>
+            ))}
           </div>
-        </main>
+
+          <button
+            onClick={() => setFlagMode(!flagMode)}
+            className={`rounded-xl border px-4 py-1.5 text-xs font-semibold transition-all ${
+              flagMode
+                ? "border-rose-500 bg-rose-950/60 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.4)]"
+                : "border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-500/40"
+            }`}
+          >
+            🚩 Flag Mode: {flagMode ? "ON" : "OFF"}
+          </button>
+
+          <span className="text-xs font-bold text-cyan-300">
+            💣 {remainingMines} left
+          </span>
+        </div>
+      }
+    >
+      <div className="flex flex-col items-center overflow-x-auto p-2">
+        <div
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {grid.map((row, rIndex) =>
+            row.map((cell, cIndex) => (
+              <button
+                key={`${rIndex}-${cIndex}`}
+                onClick={() => revealCell(rIndex, cIndex)}
+                onContextMenu={(e) => toggleFlag(rIndex, cIndex, e)}
+                disabled={!isPlaying}
+                aria-label={`Cell ${rIndex + 1}, ${cIndex + 1}`}
+                className={`aspect-square h-8 w-8 sm:h-9 sm:w-9 rounded-lg border text-sm font-bold transition-all flex items-center justify-center ${getCellColor(cell)}`}
+              >
+                {cell.flagged
+                  ? "🚩"
+                  : !cell.revealed
+                  ? ""
+                  : cell.isMine
+                  ? "💣"
+                  : cell.neighborMines > 0
+                  ? cell.neighborMines
+                  : ""}
+              </button>
+            ))
+          )}
+        </div>
+
+        {gameOver && (
+          <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-4 text-center">
+            <p className="text-xl font-bold text-cyan-300">
+              {won ? "🎉 Field Cleared!" : "💥 Detonated!"}
+            </p>
+            <p className="text-sm text-slate-300">Time: {timerSeconds} seconds</p>
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={restartGrid}
+            className="rounded-2xl bg-cyan-500 px-8 py-3 text-base font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all hover:bg-cyan-400 hover:scale-105"
+          >
+            {gameOver ? "Play Again" : "New Field"}
+          </button>
+        </div>
       </div>
-    </div>
+    </GameShell>
   );
 }
