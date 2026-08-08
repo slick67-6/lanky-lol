@@ -163,7 +163,7 @@ export default function DocumentAnalyserPage() {
     const quizCount = quizCountForSize(document.metadata.sizeBytes);
     const chunks = splitIntoChunks(document.text);
     const analysisChunks = chunks.length > 48
-      ? [...chunks.slice(0, 24), ...chunks.slice(-24)]
+      ? Array.from({ length: 48 }, (_, index) => chunks[Math.floor((index * (chunks.length - 1)) / 47)])
       : chunks;
     const chunkNotes: string[] = [];
 
