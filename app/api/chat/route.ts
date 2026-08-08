@@ -7,6 +7,7 @@ type ClientMessage = {
   content: string;
   image?: string;
   documentContext?: string;
+  documentImages?: string[];
 };
 
 type ImagePayload = {
@@ -46,6 +47,8 @@ const DEFAULT_VISION_MODELS = [
 
 const MAX_HISTORY_MESSAGES = 16;
 const MAX_IMAGE_DATA_LENGTH = 4_000_000;
+const MAX_DOCUMENT_CONTEXT_LENGTH = 80_000;
+const MAX_DOCUMENT_IMAGES = 4;
 const UPSTREAM_CONNECT_TIMEOUT_MS = 30_000;
 const REQUEST_START_DEADLINE_MS = 32_000;
 
@@ -94,6 +97,7 @@ function compactMessagesForModel(messages: ClientMessage[]): ClientMessage[] {
     content: message.content,
     image: index === latestImageIndex ? message.image : undefined,
     documentContext: message.documentContext,
+    documentImages: index === recentMessages.length - 1 ? message.documentImages : undefined,
   }));
 
   if (latestImageIndex >= 0) {
@@ -129,24 +133,33 @@ function toNvidiaMessages(messages: ClientMessage[]): NvidiaMessage[] {
 
     const documentContext = message.documentContext?.trim();
     const content = documentContext
-      ? `${message.content}\n\n[Attached document context for this request]\n${documentContext.slice(0, 24000)}`
+      ? `${message.content}\n\n[Attached document context for this request]\n${documentContext.slice(0, MAX_DOCUMENT_CONTEXT_LENGTH)}`
       : message.content;
 
-    if (!parsedImage) {
+    const documentImages = (message.documentImages ?? [])
+      .slice(0, MAX_DOCUMENT_IMAGES)
+      .map(parseDataUrl)
+      .filter((image): image is ImagePayload => image !== null && image.data.length <= MAX_IMAGE_DATA_LENGTH);
+
+    if (!parsedImage && documentImages.length === 0) {
       return { role: "user", content };
     }
+
+    const imageParts = [parsedImage, ...documentImages].filter(
+      (image): image is ImagePayload => Boolean(image),
+    );
 
     return {
       role: "user",
       content: [
         { type: "text", text: content },
-        {
-          type: "image_url",
+        ...imageParts.map((image) => ({
+          type: "image_url" as const,
           image_url: {
-            url: `data:${parsedImage.mimeType};base64,${parsedImage.data}`,
-            detail: "auto",
+            url: `data:${image.mimeType};base64,${image.data}`,
+            detail: "auto" as const,
           },
-        },
+        })),
       ],
     };
   });

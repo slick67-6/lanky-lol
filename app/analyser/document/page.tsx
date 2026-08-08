@@ -3,6 +3,10 @@
 import { ParticlesBackground } from "@/components/particles-background";
 import { SiteHeader } from "@/components/site-header";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { ShimmerButton } from "@/components/ui/shimmer-button";
+import { SpotlightCard } from "@/components/ui/spotlight-card";
+import type { DocumentAsset, ExtractedDocument } from "@/lib/document-extractor";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 
@@ -16,36 +20,36 @@ type TabType = "notes" | "answers" | "quiz" | "chat";
 type ViewType = "landing" | "analysis";
 type GeneratedAnalysis = { notes: string; answers: string; quiz: string };
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
+const ANALYSIS_CHUNK_SIZE = 22_000;
+const SMALL_FILE_BYTES = 1 * 1024 * 1024;
+const MEDIUM_FILE_BYTES = 5 * 1024 * 1024;
 
 function canParseFile(file: File) {
   const supportedTypes = [
     "application/pdf",
-    "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-excel.sheet.macroEnabled.12",
     "text/plain",
   ];
-  return supportedTypes.includes(file.type) || file.name.match(/\.(pdf|doc|docx|ppt|pptx|txt)$/i);
+  return supportedTypes.includes(file.type) || file.name.match(/\.(pdf|docx|pptx|xls|xlsx|xlsm|txt)$/i);
 }
 
-function readFileAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.readAsText(file);
-  });
+function quizCountForSize(sizeBytes: number) {
+  if (sizeBytes <= SMALL_FILE_BYTES) return 3;
+  if (sizeBytes <= MEDIUM_FILE_BYTES) return 5;
+  return 10;
 }
 
-function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as ArrayBuffer);
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.readAsArrayBuffer(file);
-  });
+function splitIntoChunks(text: string, chunkSize = ANALYSIS_CHUNK_SIZE) {
+  const chunks: string[] = [];
+  for (let start = 0; start < text.length; start += chunkSize) {
+    chunks.push(text.slice(start, start + chunkSize));
+  }
+  return chunks.length ? chunks : ["[No extractable text was found in this document.] "];
 }
 
 export default function DocumentAnalyserPage() {
@@ -56,6 +60,8 @@ export default function DocumentAnalyserPage() {
   const [error, setError] = useState<string | null>(null);
   const [documentContent, setDocumentContent] = useState<string | null>(null);
   const [documentName, setDocumentName] = useState<string | null>(null);
+  const [documentAssets, setDocumentAssets] = useState<DocumentAsset[]>([]);
+  const [documentMetadata, setDocumentMetadata] = useState<ExtractedDocument["metadata"] | null>(null);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Analyzing document...");
@@ -107,12 +113,12 @@ export default function DocumentAnalyserPage() {
   const attachFile = useCallback(
     async (file: File) => {
       if (!canParseFile(file)) {
-        showToast("Please upload a PDF, Word, PowerPoint, or text file.", "error");
+        showToast("Please upload a PDF, DOCX, PPTX, XLS, XLSX, XLSM, or text file.", "error");
         return;
       }
 
       if (file.size > MAX_UPLOAD_BYTES) {
-        showToast("File exceeds 25MB limit.", "error");
+        showToast("File exceeds the 512MB browser analysis limit.", "error");
         return;
       }
 
@@ -122,53 +128,6 @@ export default function DocumentAnalyserPage() {
     },
     [showToast]
   );
-
-  const extractDocumentContent = async (file: File): Promise<string> => {
-    const fileType = file.type;
-    const fileName = file.name.toLowerCase();
-
-    if (fileType === "text/plain" || fileName.endsWith(".txt")) {
-      return await readFileAsText(file);
-    }
-
-    if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-      const arrayBuffer = await readFileAsArrayBuffer(file);
-      const response = await fetch("/api/parse-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: arrayBuffer,
-      });
-      if (!response.ok) throw new Error("Failed to parse PDF document");
-      const data = await response.json();
-      return data.text || "PDF content extraction complete.";
-    }
-
-    if (fileType.includes("word") || fileName.endsWith(".docx") || fileName.endsWith(".doc")) {
-      const arrayBuffer = await readFileAsArrayBuffer(file);
-      const response = await fetch("/api/parse-docx", {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: arrayBuffer,
-      });
-      if (!response.ok) throw new Error("Failed to parse Word document");
-      const data = await response.json();
-      return data.text || "Word document extraction complete.";
-    }
-
-    if (fileType.includes("presentation") || fileName.endsWith(".pptx") || fileName.endsWith(".ppt")) {
-      const arrayBuffer = await readFileAsArrayBuffer(file);
-      const response = await fetch("/api/parse-pptx", {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: arrayBuffer,
-      });
-      if (!response.ok) throw new Error("Failed to parse PowerPoint presentation");
-      const data = await response.json();
-      return data.text || "PowerPoint extraction complete.";
-    }
-
-    throw new Error("Unsupported file format");
-  };
 
   const readStreamText = async (body: ReadableStream<Uint8Array>) => {
     const reader = body.getReader();
@@ -200,25 +159,63 @@ export default function DocumentAnalyserPage() {
     };
   };
 
-  const generateDocumentAnalysis = async (content: string, fileName: string) => {
+  const generateDocumentAnalysis = async (document: ExtractedDocument, fileName: string) => {
+    const quizCount = quizCountForSize(document.metadata.sizeBytes);
+    const chunks = splitIntoChunks(document.text);
+    const analysisChunks = chunks.length > 48
+      ? [...chunks.slice(0, 24), ...chunks.slice(-24)]
+      : chunks;
+    const chunkNotes: string[] = [];
+
+    if (analysisChunks.length > 1) {
+      for (let index = 0; index < analysisChunks.length; index += 1) {
+        setLoadingMessage("Reading every section...");
+        setLoadingDetail(`Building an understanding of section ${index + 1} of ${analysisChunks.length}.`);
+        setLoadingProgress(55 + Math.round((index / analysisChunks.length) * 25));
+        const chunkResponse = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [{
+              role: "user",
+              content: `Read this section of "${fileName}" and extract concrete facts, definitions, arguments, examples, calculations, questions, and answers. Keep it dense and factual so another model can use it in a final document analysis. Section ${index + 1} of ${analysisChunks.length}.`,
+              documentContext: analysisChunks[index],
+            }],
+          }),
+        });
+        if (!chunkResponse.ok || !chunkResponse.body) throw new Error("AI analysis service unavailable.");
+        chunkNotes.push(await readStreamText(chunkResponse.body));
+      }
+    } else {
+      chunkNotes.push(document.text);
+    }
+
+    setLoadingProgress(86);
+    setLoadingMessage("Writing your study pack...");
+    setLoadingDetail("Turning extracted content into takeaways, answers, and a size-aware quiz.");
+    const context = chunkNotes.join("\n\n--- SECTION SUMMARY ---\n\n");
+    const imageSources = document.assets.filter((asset) => asset.kind === "image" || asset.kind === "page").slice(0, 4).map((asset) => asset.src);
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: [
-          {
-            role: "user",
-            content: `Analyse document "${fileName}". Return three labelled sections: NOTES:, ANSWERS:, QUIZ:. NOTES should be concise bullet points. ANSWERS should have Q&A pairs. QUIZ should have 6 questions with answers.`,
-            documentContext: content,
-          },
-        ],
+        messages: [{
+          role: "user",
+          content: `Analyse the complete document "${fileName}". Return exactly three labelled Markdown sections: NOTES:, ANSWERS:, QUIZ:.
+
+NOTES must be key takeaways and important new information, including slide-by-slide themes when relevant. Do not write generic study advice.
+ANSWERS must answer the useful questions and problems found in the document, including maths, English, grammar, definitions, exercises, or worked examples. Show concise reasoning for calculations and correct the answer if the source is ambiguous.
+QUIZ must contain exactly ${quizCount} questions with answers hidden under each answer line. Vary the question types and cover the most important material. Use Markdown headings, lists, tables, and LaTeX math where helpful.
+
+Document format: ${document.metadata.format}. Extracted size: ${Math.round(document.metadata.sizeBytes / 1024 / 1024)}MB. Embedded/page images available: ${document.metadata.imageCount}.
+${chunks.length > 48 ? "The source was very large, so the section summaries below represent the beginning and end of the document plus representative sections." : "Use all of the extracted source below."}`,
+          documentContext: context,
+          documentImages: imageSources,
+        }],
       }),
     });
 
-    if (!res.ok || !res.body) {
-      throw new Error("AI analysis service unavailable.");
-    }
-
+    if (!res.ok || !res.body) throw new Error("AI analysis service unavailable.");
     return splitGeneratedAnalysis(await readStreamText(res.body));
   };
 
@@ -233,22 +230,30 @@ export default function DocumentAnalyserPage() {
 
     try {
       setLoadingProgress(35);
-      setLoadingMessage("Extracting document text...");
-      const content = await extractDocumentContent(pendingFile);
+      setLoadingMessage("Extracting document content...");
+      setLoadingDetail("Reading text, tables, formulas, slide structure, and embedded media locally in your browser.");
+      const { extractDocument } = await import("@/lib/document-extractor");
+      const extracted = await extractDocument(pendingFile, (progress, detail) => {
+        setLoadingProgress(35 + Math.round(progress * 0.3));
+        setLoadingDetail(detail);
+      });
+      const content = extracted.text;
       setDocumentContent(content);
+      setDocumentAssets(extracted.assets);
+      setDocumentMetadata(extracted.metadata);
       setDocumentName(pendingFile.name);
 
       setLoadingProgress(70);
-      setLoadingMessage("Generating AI notes & quiz...");
+      setLoadingMessage("Generating AI study pack...");
 
       try {
-        const analysis = await generateDocumentAnalysis(content, pendingFile.name);
+        const analysis = await generateDocumentAnalysis(extracted, pendingFile.name);
         setGeneratedAnalysis(analysis);
       } catch {
         setGeneratedAnalysis({
-          notes: `Document text extracted successfully.\n\n${content.slice(0, 1800)}...`,
-          answers: "Use the Chat tab for document Q&A.",
-          quiz: "Ask the Chat tab to generate a quiz.",
+          notes: `Document content extracted successfully.\n\n${content.slice(0, 2200)}${content.length > 2200 ? "…" : ""}`,
+          answers: "The AI study pack could not be generated. Use Chat to ask about the extracted content.",
+          quiz: `The AI study pack could not be generated. Use Chat to create a ${quizCountForSize(pendingFile.size)}-question quiz.`,
         });
       }
 
@@ -264,7 +269,7 @@ export default function DocumentAnalyserPage() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `Successfully analyzed **${pendingFile.name}**. Explore key notes, Q&A answers, and custom quizzes using the top tabs or ask me directly here!`,
+          content: `**${pendingFile.name}** is ready. I extracted the document text and ${extracted.metadata.imageCount} embedded/page image${extracted.metadata.imageCount === 1 ? "" : "s"}. Explore the study pack or ask me anything about it.`,
         },
       ]);
     } catch (e) {
@@ -280,6 +285,20 @@ export default function DocumentAnalyserPage() {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let reply = "";
+    let lastPaintAt = 0;
+    let lastPaintLength = 0;
+
+    const paint = () => {
+      setStreamingMessageId(messageId);
+      setMessages((prev) => {
+        const existing = prev.some((message) => message.id === messageId);
+        return existing
+          ? prev.map((message) => (message.id === messageId ? { ...message, content: reply } : message))
+          : [...prev, { id: messageId, role: "assistant", content: reply }];
+      });
+      lastPaintAt = performance.now();
+      lastPaintLength = reply.length;
+    };
 
     try {
       for (;;) {
@@ -287,11 +306,15 @@ export default function DocumentAnalyserPage() {
         if (done) break;
 
         reply += decoder.decode(value, { stream: true });
+        if (reply && (lastPaintLength === 0 || performance.now() - lastPaintAt > 45 || reply.length - lastPaintLength > 180)) {
+          paint();
+        }
       }
 
       reply += decoder.decode();
       if (!reply.trim()) throw new Error("Empty response from document model.");
-      setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: reply.trim() }]);
+      reply = reply.trim();
+      paint();
     } finally {
       setStreamingMessageId(null);
       reader.releaseLock();
@@ -320,10 +343,19 @@ export default function DocumentAnalyserPage() {
     abortControllerRef.current = controller;
 
     try {
+      const followUpImages: string[] = [];
+      let followUpImageBytes = 0;
+      for (const asset of documentAssets.slice(0, 4)) {
+        const size = asset.src.length;
+        if (followUpImageBytes + size > 2_500_000) break;
+        followUpImages.push(asset.src);
+        followUpImageBytes += size;
+      }
       const apiMessages = nextMessages.map((m) => ({
         role: m.role,
         content: m.content,
-        documentContext: documentContent,
+        documentContext: m.id === userMsg.id ? documentContent : undefined,
+        documentImages: m.id === userMsg.id ? followUpImages : undefined,
       }));
 
       const res = await fetch("/api/chat", {
@@ -368,16 +400,16 @@ export default function DocumentAnalyserPage() {
                   AI Document Workspace
                 </h1>
                 <p className="text-sm leading-relaxed text-slate-400 sm:text-base">
-                  Upload PDFs, Word docs, PowerPoint presentations, or raw text files. Instantly extract study notes, Q&A sets, and custom quizzes.
+                  Upload PDFs, Word docs, PowerPoint decks, Excel workbooks, or text. Extract the source locally, then turn it into notes, answers, visual context, and a right-sized quiz.
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+              <SpotlightCard className="p-6 sm:p-8">
                 <div className="mb-6 rounded-2xl border-2 border-dashed border-white/[0.1] bg-white/[0.02] p-8 text-center transition-colors hover:border-white/[0.2]">
                   <input
                     ref={fileRef}
                     type="file"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+                    accept=".pdf,.docx,.pptx,.xls,.xlsx,.xlsm,.txt"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -395,7 +427,7 @@ export default function DocumentAnalyserPage() {
                     </div>
                     <div>
                       <p className="text-base font-semibold text-white/80">Click or drag & drop document</p>
-                      <p className="text-xs text-slate-400">PDF, DOCX, PPTX, TXT (Max 25MB)</p>
+                      <p className="text-xs text-slate-400">PDF, DOCX, PPTX, XLS, XLSX, XLSM, TXT · up to 512MB</p>
                     </div>
                   </button>
                 </div>
@@ -417,14 +449,14 @@ export default function DocumentAnalyserPage() {
 
                 {error && <p className="mb-4 text-xs text-rose-400">{error}</p>}
 
-                <button
+                <ShimmerButton
                   onClick={processDocument}
                   disabled={!pendingFile || loading}
-                  className="w-full rounded-2xl bg-white py-3.5 text-base font-bold text-[#030712] shadow-[0_2px_16px_rgba(255,255,255,0.15)] transition-all hover:bg-white/90 disabled:opacity-40"
+                  className="w-full py-3.5 text-base"
                 >
-                  Analyse Document
-                </button>
-              </div>
+                  {pendingFile ? "Build study pack" : "Choose a document"}
+                </ShimmerButton>
+              </SpotlightCard>
             </div>
           </main>
         </div>
@@ -466,51 +498,88 @@ export default function DocumentAnalyserPage() {
 
             <span className="truncate text-xs font-semibold text-white/30 max-w-xs">{documentName}</span>
 
-            <div className="flex gap-1">
-              {[
-                { id: "notes" as TabType, label: "Notes" },
-                { id: "answers" as TabType, label: "Q&A" },
-                { id: "quiz" as TabType, label: "Quiz" },
-                { id: "chat" as TabType, label: "Chat" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    activeTab === tab.id
-                      ? "bg-white text-[#030712]"
-                      : "text-white/40 hover:text-white/70 hover:bg-white/[0.07]"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <AnimatedTabs
+              tabs={[
+                { id: "notes" as TabType, label: "Key notes", icon: "✦" },
+                { id: "answers" as TabType, label: "Answers", icon: "↗" },
+                { id: "quiz" as TabType, label: "Quiz", icon: "⌁" },
+                { id: "chat" as TabType, label: "Chat", icon: "◌" },
+              ]}
+              activeTab={activeTab}
+              onChange={setActiveTab}
+            />
           </div>
         </div>
 
         {/* Tab Workspace Views */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
           <div className="mx-auto max-w-5xl">
+            <div className="mb-5 grid gap-3 sm:grid-cols-4">
+              {[
+                { label: "Format", value: documentMetadata?.format || "—" },
+                { label: "Source size", value: documentMetadata ? `${(documentMetadata.sizeBytes / 1024 / 1024).toFixed(1)} MB` : "—" },
+                { label: documentMetadata?.sheetCount ? "Sheets" : documentMetadata?.pageCount ? "Pages / slides" : "Content", value: documentMetadata?.sheetCount?.toString() || documentMetadata?.pageCount?.toString() || "Extracted" },
+                { label: "Media", value: documentMetadata ? `${documentMetadata.imageCount} visual${documentMetadata.imageCount === 1 ? "" : "s"}` : "—" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 backdrop-blur-xl">
+                  <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-white/30">{stat.label}</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-white/80">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {documentAssets.length > 0 && activeTab !== "chat" && (
+              <SpotlightCard className="mb-5 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-white/30">Visual context</p>
+                    <p className="mt-1 text-sm font-semibold text-white/80">Extracted images and page previews</p>
+                  </div>
+                  <span className="text-xs text-white/35">{documentAssets.length} available</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {documentAssets.slice(0, 8).map((asset) => (
+                    <figure key={asset.id} className="overflow-hidden rounded-xl border border-white/[0.08] bg-black/20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={asset.src} alt={asset.label} className="h-28 w-full object-cover opacity-85 transition duration-300 hover:scale-[1.03] hover:opacity-100" />
+                      <figcaption className="truncate px-2 py-1.5 text-[0.62rem] text-white/35">{asset.label}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </SpotlightCard>
+            )}
+
             {activeTab === "notes" && (
-              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-white/80">Key Study Notes</h2>
+              <SpotlightCard className="p-6 sm:p-8">
+                <div className="mb-6 flex items-end justify-between gap-4">
+                  <div>
+                    <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-cyan-300/60">Signal extraction</p>
+                    <h2 className="text-2xl font-bold text-white">Key takeaways</h2>
+                  </div>
+                  <span className="hidden rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[0.68rem] font-semibold text-cyan-200 sm:inline-flex">Important information</span>
+                </div>
                 <MarkdownRenderer>{generatedAnalysis?.notes || ""}</MarkdownRenderer>
-              </div>
+              </SpotlightCard>
             )}
 
             {activeTab === "answers" && (
-              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-white/80">Q&amp;A Insights</h2>
+              <SpotlightCard className="p-6 sm:p-8">
+                <div className="mb-6">
+                  <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-violet-300/60">Problem solver</p>
+                  <h2 className="text-2xl font-bold text-white">Answers from the document</h2>
+                </div>
                 <MarkdownRenderer>{generatedAnalysis?.answers || ""}</MarkdownRenderer>
-              </div>
+              </SpotlightCard>
             )}
 
             {activeTab === "quiz" && (
-              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl backdrop-blur-xl">
-                <h2 className="mb-4 text-xl font-bold text-white/80">Generated Quiz</h2>
+              <SpotlightCard className="p-6 sm:p-8">
+                <div className="mb-6">
+                  <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.24em] text-amber-300/60">Active recall</p>
+                  <h2 className="text-2xl font-bold text-white">Your document quiz</h2>
+                </div>
                 <MarkdownRenderer>{generatedAnalysis?.quiz || ""}</MarkdownRenderer>
-              </div>
+              </SpotlightCard>
             )}
 
             {activeTab === "chat" && (

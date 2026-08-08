@@ -103,6 +103,20 @@ export default function ImageAnalyserPage() {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let reply = "";
+    let lastPaintAt = 0;
+    let lastPaintLength = 0;
+
+    const paint = () => {
+      setStreamingMessageId(messageId);
+      setMessages((prev) => {
+        const existing = prev.some((message) => message.id === messageId);
+        return existing
+          ? prev.map((message) => (message.id === messageId ? { ...message, content: reply } : message))
+          : [...prev, { id: messageId, role: "assistant", content: reply }];
+      });
+      lastPaintAt = performance.now();
+      lastPaintLength = reply.length;
+    };
 
     try {
       for (;;) {
@@ -110,11 +124,15 @@ export default function ImageAnalyserPage() {
         if (done) break;
 
         reply += decoder.decode(value, { stream: true });
+        if (reply && (lastPaintLength === 0 || performance.now() - lastPaintAt > 45 || reply.length - lastPaintLength > 180)) {
+          paint();
+        }
       }
 
       reply += decoder.decode();
       if (!reply.trim()) throw new Error("Empty response from vision model.");
-      setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: reply.trim() }]);
+      reply = reply.trim();
+      paint();
     } finally {
       setStreamingMessageId(null);
       reader.releaseLock();
