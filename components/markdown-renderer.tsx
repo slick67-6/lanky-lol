@@ -1,5 +1,7 @@
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import type { ReactNode } from "react";
 
 const components: Components = {
@@ -108,8 +110,12 @@ const components: Components = {
 
 export function MarkdownRenderer({ children }: { children: string }) {
   return (
-    <div className="space-y-2 whitespace-pre-wrap">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+    <div className="space-y-2 break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={components}
+      >
         {children}
       </ReactMarkdown>
     </div>

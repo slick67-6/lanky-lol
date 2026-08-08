@@ -94,30 +94,8 @@ export default function ImageAnalyserPage() {
 
   const animateAssistantReply = useCallback(async (reply: string) => {
     const messageId = crypto.randomUUID();
-    setStreamingMessageId(messageId);
-    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
-
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (prefersReducedMotion) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
-      );
-      setStreamingMessageId(null);
-      return;
-    }
-
-    const step = reply.length > 2400 ? 36 : reply.length > 1200 ? 28 : 18;
-    for (let i = 0; i < reply.length; i += step) {
-      const next = reply.slice(0, i + step);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: next } : m))
-      );
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    }
-    setStreamingMessageId(null);
+    if (!reply.trim()) throw new Error("Empty response from vision model.");
+    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: reply.trim() }]);
   }, []);
 
   const streamAssistantReply = useCallback(async (body: ReadableStream<Uint8Array>) => {
@@ -126,24 +104,17 @@ export default function ImageAnalyserPage() {
     const decoder = new TextDecoder();
     let reply = "";
 
-    setStreamingMessageId(messageId);
-    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
-
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
 
         reply += decoder.decode(value, { stream: true });
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
-        );
       }
 
       reply += decoder.decode();
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
-      );
+      if (!reply.trim()) throw new Error("Empty response from vision model.");
+      setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: reply.trim() }]);
     } finally {
       setStreamingMessageId(null);
       reader.releaseLock();

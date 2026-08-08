@@ -281,24 +281,17 @@ export default function DocumentAnalyserPage() {
     const decoder = new TextDecoder();
     let reply = "";
 
-    setStreamingMessageId(messageId);
-    setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: "" }]);
-
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
 
         reply += decoder.decode(value, { stream: true });
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
-        );
       }
 
       reply += decoder.decode();
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: reply } : m))
-      );
+      if (!reply.trim()) throw new Error("Empty response from document model.");
+      setMessages((prev) => [...prev, { id: messageId, role: "assistant", content: reply.trim() }]);
     } finally {
       setStreamingMessageId(null);
       reader.releaseLock();
@@ -552,6 +545,18 @@ export default function DocumentAnalyserPage() {
                         </div>
                       </div>
                     ))}
+                    {loading && !streamingMessageId && (
+                      <div className="flex justify-start">
+                        <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm text-white/45">
+                          <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wider text-white/35">Thinking…</div>
+                          <span className="inline-flex gap-1.5">
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-white/50" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
+                            <span className="h-2 w-2 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
