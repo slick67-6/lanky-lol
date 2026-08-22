@@ -142,6 +142,7 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 .marquee-reverse .marquee-track { animation-direction: reverse; }
 .marquee-slow .marquee-track { animation-duration: 56s; }
 @keyframes marquee-scroll {
+  to { transform: translateX(-50%); }
 }
 
 .flip-word {

@@ -9,14 +9,14 @@ import { FlipWords, Marquee, NumberTicker, Reveal } from "@/components/fx/motion
 import { BorderBeamCard, Sparkles } from "@/components/fx/effects";
 
 const CAPABILITIES = [
-  ["â™Ÿ️", "Instant chess matchmaking"],
+  ["♟️", "Instant chess matchmaking"],
   ["ðŸ“„", "PDF · DOCX · PPTX · XLSX"],
-  ["ðŸ’¬", "Chat with your documents"],
-  ["ðŸ§ ", "Auto notes & quizzes"],
-  ["ðŸ–¼️", "Image & screenshot analysis"],
-  ["ðŸ”’", "Zero accounts"],
-  ["ðŸŽ¨", "Custom themes"],
-  ["âŒ¨️", "âŒ˜K everywhere"],
+  ["💬", "Chat with your documents"],
+  ["🧠", "Auto notes & quizzes"],
+  ["🖼️", "Image & screenshot analysis"],
+  ["🔒", "Zero accounts"],
+  ["🎨", "Custom themes"],
+  ["⌨️", "⌘K everywhere"],
 ];
 
 const STATS = [
@@ -118,7 +118,7 @@ function ChatDemo() {
     <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-black/40">
       <div className="flex items-center gap-2 border-b border-white/[0.07] px-4 py-2.5">
         <span className="h-2 w-2 rounded-full bg-emerald-400" />
-        <span className="text-[11px] font-semibold text-white/45">thesis.pdf â€” Chat tab</span>
+        <span className="text-[11px] font-semibold text-white/45">thesis.pdf — Chat tab</span>
         <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/30">4 / 24 pages read</span>
       </div>
       <div className="flex min-h-[190px] flex-col justify-end gap-2.5 p-4">
@@ -142,7 +142,7 @@ function ChatDemo() {
           }}
         >
           Chapter 3 argues that distributed teams outperform co-located ones after year one.
-          <span className="mt-1 block text-white/60">Ready for your quiz â€” 5 questions?</span>
+          <span className="mt-1 block text-white/60">Ready for your quiz — 5 questions?</span>
         </div>
       </div>
     </div>
@@ -173,7 +173,7 @@ export default function HomePage() {
                 <br />
                 Study smarter.
                 <br />
-                No account â€” just <FlipWords />
+                No account — just <FlipWords />
               </h1>
 
               <p className="animate-slide-up anim-delay-2 mx-auto mb-10 max-w-xl text-base leading-relaxed text-white/45 sm:text-lg">
@@ -183,14 +183,14 @@ export default function HomePage() {
 
               <div className="animate-slide-up anim-delay-3 mb-10 flex flex-wrap items-center justify-center gap-3">
                 <ShimmerLink href="/chess">
-                  â™Ÿ Play chess
+                  ♟ Play chess
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </ShimmerLink>
                 <Link
                   href="/analyser/document"
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.15] bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.09] hover:text-white"
                 >
-                  ðŸ’¬ Open AI analyser
+                  💬 Open AI analyser
                 </Link>
               </div>
 
@@ -203,7 +203,7 @@ export default function HomePage() {
               <BorderBeamCard className="rounded-3xl">
                 <div className="overflow-hidden rounded-3xl border border-white/[0.12] shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl" style={{ background: "linear-gradient(160deg, rgba(18,22,40,0.85), rgba(8,10,22,0.88))" }}>
                   <div className="flex items-center gap-2 border-b border-white/[0.08] px-5 py-3">
-                    â™Ÿ <span className="text-sm font-bold text-white">Lanky Chess</span>
+                    ♟ <span className="text-sm font-bold text-white">Lanky Chess</span>
                     <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-black tracking-[0.14em] text-emerald-300">
                       LIVE
                     </span>
@@ -211,10 +211,10 @@ export default function HomePage() {
                   <div className="p-5 text-left">
                     <PairingLog />
                     <p className="mt-4 text-xs leading-relaxed text-white/35">
-                      Click Find a Match â†’ paired automatically. 1, 5 or 10 minute clocks, instant rematch.
+                      Click Find a Match → paired automatically. 1, 5 or 10 minute clocks, instant rematch.
                     </p>
                     <Link href="/chess" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:brightness-125" style={{ color: "var(--accent-primary)" }}>
-                      Find a match now â†’
+                      Find a match now →
                     </Link>
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export default function HomePage() {
               <div className="group overflow-hidden rounded-3xl border border-white/[0.12] shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-all hover:-translate-y-1 hover:border-white/[0.22]" style={{ background: "linear-gradient(160deg, rgba(18,22,40,0.85), rgba(8,10,22,0.88))" }}>
                 <div className="flex items-center gap-2 border-b border-white/[0.08] px-5 py-3">
                   ðŸ“„ <span className="text-sm font-bold text-white">AI Analyser Suite</span>
-                  <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/35">âŒ˜K</span>
+                  <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/35">⌘K</span>
                 </div>
                 <div className="p-5 text-left">
                   <div className="mb-3 flex flex-wrap gap-1.5">
@@ -239,7 +239,7 @@ export default function HomePage() {
                   </div>
                   <ChatDemo />
                   <Link href="/analyser/document" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:brightness-125" style={{ color: "var(--accent-primary)" }}>
-                    Upload a document â†’
+                    Upload a document →
                   </Link>
                 </div>
               </div>
@@ -271,7 +271,7 @@ export default function HomePage() {
             <div className="grid gap-5 lg:grid-cols-2">
               <Reveal scale>
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl">
-                  <h3 className="mb-6 text-lg font-bold text-white">â™Ÿ The chess lane</h3>
+                  <h3 className="mb-6 text-lg font-bold text-white">♟ The chess lane</h3>
                   <ol className="space-y-5">
                     {[
                       ["Pick a clock", "1, 5 or 10 minutes per side."],
@@ -294,12 +294,12 @@ export default function HomePage() {
 
               <Reveal scale delay={100}>
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl">
-                  <h3 className="mb-6 text-lg font-bold text-white">ðŸ’¬ The study lane</h3>
+                  <h3 className="mb-6 text-lg font-bold text-white">💬 The study lane</h3>
                   <ol className="space-y-5">
                     {[
-                      ["Drop a file", "PDF, DOCX, PPTX or XLSX â€” or an image for vision analysis."],
+                      ["Drop a file", "PDF, DOCX, PPTX or XLSX — or an image for vision analysis."],
                       ["Get the study pack", "Key notes, worked answers and a quiz generated instantly."],
-                      ["Ask anything", "The Chat tab answers from the actual document â€” formulas included."],
+                      ["Ask anything", "The Chat tab answers from the actual document — formulas included."],
                     ].map(([t, d], i) => (
                       <li key={t} className="flex gap-4">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-bold" style={{ borderColor: "color-mix(in srgb, var(--accent-primary) 40%, transparent)", color: "var(--accent-primary)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)" }}>
@@ -338,28 +338,28 @@ export default function HomePage() {
             <SectionHead
               eyebrow="UNDER THE HOOD"
               title={<>Small details,<br /><span className="gradient-flow-text">everywhere.</span></>}
-              sub="The polish isn't just on the surface â€” it's baked into how every interaction feels."
+              sub="The polish isn't just on the surface — it's baked into how every interaction feels."
             />
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <Reveal scale className="md:col-span-2">
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.04] p-8 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.06]">
                   <div className="mb-5 flex h-fit w-fit items-center justify-center rounded-2xl p-3.5 text-3xl" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)", boxShadow: "0 0 24px color-mix(in srgb, var(--accent-primary) 25%, transparent)" }}>
-                    â™Ÿ
+                    ♟
                   </div>
                   <h3 className="text-xl font-bold text-white">Full rules engine</h3>
                   <p className="mt-2 max-w-md text-sm leading-relaxed text-white/40">
-                    Check, checkmate, stalemate, en-passant, castling and promotion â€” all enforced server-side with 1/5/10 minute clocks.
+                    Check, checkmate, stalemate, en-passant, castling and promotion — all enforced server-side with 1/5/10 minute clocks.
                   </p>
                 </div>
               </Reveal>
 
               <Reveal scale delay={90}>
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-7 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.055]">
-                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">ðŸ–¼️</div>
+                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">🖼️</div>
                   <h3 className="text-xl font-bold text-white">Vision Analyser</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/40">
-                    Screenshots, diagrams, handwriting â€” analysed in seconds.
+                    Screenshots, diagrams, handwriting — analysed in seconds.
                   </p>
                 </div>
               </Reveal>
@@ -367,7 +367,7 @@ export default function HomePage() {
               <Reveal scale delay={140}>
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-7 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.055]">
                   <div className="mb-5 inline-flex items-center gap-1.5 rounded-xl border border-white/[0.12] bg-black/40 px-3 py-1.5 font-mono text-xs text-white/60">
-                    âŒ˜ K
+                    ⌘ K
                   </div>
                   <h3 className="text-xl font-bold text-white">Command palette</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/40">
@@ -380,10 +380,10 @@ export default function HomePage() {
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.05]">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="max-w-sm">
-                      <div className="mb-5 inline-flex rounded-2xl bg-white/[0.06] p-3.5 text-2xl">ðŸŽ¨</div>
+                      <div className="mb-5 inline-flex rounded-2xl bg-white/[0.06] p-3.5 text-2xl">🎨</div>
                       <h3 className="text-xl font-bold text-white">Make it yours</h3>
                       <p className="mt-2 text-sm leading-relaxed text-white/40">
-                        Accent palettes, AMOLED black, true light mode â€” the entire interface bends to your taste, saved locally.
+                        Accent palettes, AMOLED black, true light mode — the entire interface bends to your taste, saved locally.
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -416,12 +416,12 @@ export default function HomePage() {
                     Free forever, no card, no account. Bring a document if you want.
                   </p>
                   <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-                    <ShimmerLink href="/chess">â™Ÿ Play now</ShimmerLink>
+                    <ShimmerLink href="/chess">♟ Play now</ShimmerLink>
                     <Link
                       href="/analyser/image"
                       className="rounded-2xl border border-white/[0.15] bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 transition-all hover:-translate-y-0.5 hover:border-white/30 hover:text-white"
                     >
-                      ðŸ–¼️ Analyse an image
+                      🖼️ Analyse an image
                     </Link>
                   </div>
                 </div>
@@ -432,7 +432,7 @@ export default function HomePage() {
 
         <footer className="border-t border-white/[0.06] px-6 py-8">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
-            <p className="text-xs text-white/20">© 2026 lanky.lol â€” crafted with obsession.</p>
+            <p className="text-xs text-white/20">© 2026 lanky.lol — crafted with obsession.</p>
             <div className="flex gap-6 text-xs font-medium text-white/25">
               <Link href="/chess" className="transition-colors hover:text-white/60">Chess</Link>
               <Link href="/analyser/image" className="transition-colors hover:text-white/60">Vision</Link>
