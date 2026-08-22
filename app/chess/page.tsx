@@ -135,10 +135,11 @@ function legalDests(b:Board,r:number,c:number,cr:CastlingRights,ep:[number,numbe
   if(p.type==="k"&&!inChk(b,col)){
     const row=col==="w"?7:0;
     if(r===row&&c===4){
-      if((col==="w"?cr.wK:cr.bK)&&!b[row][5]&&!b[row][6]&&!attacked(b,row,5,OPP[col])&&!attacked(b,row,6,OPP[col])){
+      const kr=b[row][7],qr=b[row][0];
+      if((col==="w"?cr.wK:cr.bK)&&kr?.type==="r"&&kr.color===col&&!b[row][5]&&!b[row][6]&&!attacked(b,row,5,OPP[col])&&!attacked(b,row,6,OPP[col])){
         const nb=applyMov(b,r,c,row,6,ep);if(!inChk(nb,col))mv.push([row,6]);
       }
-      if((col==="w"?cr.wQ:cr.bQ)&&!b[row][1]&&!b[row][2]&&!b[row][3]&&!attacked(b,row,2,OPP[col])&&!attacked(b,row,3,OPP[col])){
+      if((col==="w"?cr.wQ:cr.bQ)&&qr?.type==="r"&&qr.color===col&&!b[row][1]&&!b[row][2]&&!b[row][3]&&!attacked(b,row,2,OPP[col])&&!attacked(b,row,3,OPP[col])){
         const nb=applyMov(b,r,c,row,2,ep);if(!inChk(nb,col))mv.push([row,2]);
       }
     }
@@ -151,10 +152,13 @@ function anyLegal(b:Board,col:PieceColor,cr:CastlingRights,ep:[number,number]|nu
   return false;
 }
 
-function updCR(cr:CastlingRights,fr:number,fc:number,p:Piece):CastlingRights{
+function updCR(cr:CastlingRights,fr:number,fc:number,tr:number,tc:number,p:Piece):CastlingRights{
   const n={...cr};
   if(p.type==="k"){if(p.color==="w"){n.wK=false;n.wQ=false;}else{n.bK=false;n.bQ=false;}}
-  if(p.type==="r"){if(fr===7&&fc===7)n.wK=false;if(fr===7&&fc===0)n.wQ=false;if(fr===0&&fc===7)n.bK=false;if(fr===0&&fc===0)n.bQ=false;}
+  if(fr===7&&fc===7)n.wK=false;if(fr===7&&fc===0)n.wQ=false;
+  if(fr===0&&fc===7)n.bK=false;if(fr===0&&fc===0)n.bQ=false;
+  if(tr===7&&tc===7)n.wK=false;if(tr===7&&tc===0)n.wQ=false;
+  if(tr===0&&tc===7)n.bK=false;if(tr===0&&tc===0)n.bQ=false;
   return n;
 }
 
@@ -167,6 +171,13 @@ function insuffMat(b:Board):boolean{
   if(ps.length===2)return true;
   if(ps.length===3){const nk=ps.filter(p=>p.type!=="k");if(nk.length===1&&(nk[0].type==="n"||nk[0].type==="b"))return true;}
   return false;
+}
+
+const LT:Record<PieceType,string>={p:"p",r:"r",n:"n",b:"b",q:"q",k:"k"};
+function posKey(b:Board,t:PieceColor,c:CastlingRights,ep:[number,number]|null):string{
+  let s=t+(c.wK?"K":"")+(c.wQ?"Q":"")+(c.bK?"k":"")+(c.bQ?"q":"")+"|";
+  for(let r=0;r<8;r++)for(let cc=0;cc<8;cc++){const p=b[r][cc];s+=p?(p.color==="w"?LT[p.type].toUpperCase():LT[p.type]):".";}
+  return s+"|"+(ep?`${ep[0]}${ep[1]}`:"-");
 }
 
 function fmt(s:number):string{const m=Math.floor(s/60),sc=s%60;return`${m}:${sc.toString().padStart(2,"0")}`;}
@@ -201,6 +212,8 @@ export default function ChessPage() {
   const [wtSec,   setWtSec]   = useState(300);
   const [btSec,   setBtSec]   = useState(300);
   const [movLk,   setMovLk]   = useState(false);
+  const [half,    setHalf]    = useState(0);
+  const [posHist, setPosHist] = useState<string[]>([]);
 
   const boardRef   = useRef<HTMLDivElement>(null);
   const myId       = useRef("");
@@ -271,6 +284,7 @@ export default function ChessPage() {
         if(s.enPassant!==undefined)setEP(s.enPassant);
         if(s.capturedW)setCapW(s.capturedW);if(s.capturedB)setCapB(s.capturedB);
         if(s.whiteTimeSec!=null)setWtSec(s.whiteTimeSec);if(s.blackTimeSec!=null)setBtSec(s.blackTimeSec);
+        if(s.half!=null)setHalf(s.half);if(s.posHist)setPosHist(s.posHist);
         setChkCol(inChk(s.board,s.turn)?s.turn:null);
         if(s.winner){setWinner(s.winner);setStatus("finished");relLk();playSfx(sfxChk);}else playSfx(sfxMov);
       }
@@ -280,9 +294,9 @@ export default function ChessPage() {
 
   useEffect(()=>{if(roomId){pollR.current=setInterval(poll,800);return()=>{if(pollR.current)clearInterval(pollR.current);};}},[ roomId,poll]);
 
-  const pushMov=useCallback(async(nb:Board,nt:PieceColor,nl:{from:[number,number];to:[number,number]},nw:PieceType[],nb2:PieceType[],gw:string|null,mc:number,ncr:CastlingRights,nep:[number,number]|null,wt:number,bt:number)=>{
+  const pushMov=useCallback(async(nb:Board,nt:PieceColor,nl:{from:[number,number];to:[number,number]},nw:PieceType[],nb2:PieceType[],gw:string|null,mc:number,ncr:CastlingRights,nep:[number,number]|null,wt:number,bt:number,nh:number,nhist:string[])=>{
     const sig=mc.toString(36)+nt;syncRef.current=sig;
-    try{await fetch("/api/chess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"move",roomId,playerId:myId.current,state:{board:nb,turn:nt,lastMove:nl,capturedW:nw,capturedB:nb2,winner:gw,lastPlayer:myId.current,sig,castlingRights:ncr,enPassant:nep,whiteTimeSec:wt,blackTimeSec:bt}})});}catch{}
+    try{await fetch("/api/chess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"move",roomId,playerId:myId.current,state:{board:nb,turn:nt,lastMove:nl,capturedW:nw,capturedB:nb2,winner:gw,lastPlayer:myId.current,sig,castlingRights:ncr,enPassant:nep,whiteTimeSec:wt,blackTimeSec:bt,half:nh,posHist:nhist}})});}catch{}
   },[roomId]);
 
   async function findMatch(){
@@ -292,6 +306,7 @@ export default function ChessPage() {
     setCapW([]);setCapB([]);setWinner(null);setMovN(0);
     setCR({wK:true,wQ:true,bK:true,bQ:true});setEP(null);
     setWtSec(secs);setBtSec(secs);setChkCol(null);syncRef.current="";
+    setHalf(0);setPosHist([]);
     try{
       const res=await fetch("/api/chess",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"matchmake",playerId:myId.current})});
       const data=await res.json();setRoomId(data.roomId);setMyCol(data.color);
@@ -308,21 +323,27 @@ export default function ChessPage() {
 
   function commitMov(fr:number,fc:number,tr:number,tc:number,prm:PieceType="q"){
     const b=board,piece=b[fr][fc]!;
-    const ncr=updCR(cr,fr,fc,piece);const nep=calcEP(piece,fr,fc,tr);
+    const ncr=updCR(cr,fr,fc,tr,tc,piece);const nep=calcEP(piece,fr,fc,tr);
     const nb=applyMov(b,fr,fc,tr,tc,ep,prm);
     const cap=(ep&&tr===ep[0]&&tc===ep[1])?{type:"p" as PieceType,color:OPP[myCol]}:b[tr][tc];
     const nw=[...capW],nb2=[...capB];
     if(cap){if(cap.color==="w")nw.push(cap.type);else nb2.push(cap.type);playSfx(sfxCap);}else playSfx(sfxMov);
     const nt:PieceColor=myCol==="w"?"b":"w";const nl={from:[fr,fc] as [number,number],to:[tr,tc] as [number,number]};
     const mc=movN+1;let gw:string|null=null;
+    const nh=(piece.type==="p"||cap)?0:half+1;
+    const pk=posKey(nb,nt,ncr,nep);
+    const nhist=[...posHist,pk];
     const oic=inChk(nb,nt),ohal=anyLegal(nb,nt,ncr,nep);
     if(oic&&!ohal){gw=myCol==="w"?"White":"Black";setWinner(gw);setStatus("finished");relLk();playSfx(sfxChk);showToast("Checkmate! \uD83C\uDFC6","ok");}
     else if(!oic&&!ohal){gw="Draw (stalemate)";setWinner(gw);setStatus("finished");relLk();playSfx(sfxEnd);showToast("Stalemate \u2014 draw!","info");}
     else if(insuffMat(nb)){gw="Draw (material)";setWinner(gw);setStatus("finished");relLk();playSfx(sfxEnd);showToast("Draw \u2014 insufficient material","info");}
+    else if(nh>=100){gw="Draw (50-move rule)";setWinner(gw);setStatus("finished");relLk();playSfx(sfxEnd);showToast("Draw \u2014 50-move rule","info");}
+    else if(nhist.filter(k=>k===pk).length>=3){gw="Draw (repetition)";setWinner(gw);setStatus("finished");relLk();playSfx(sfxEnd);showToast("Draw \u2014 threefold repetition","info");}
     else if(oic){setChkCol(nt);playSfx(sfxChk);}else setChkCol(null);
     setBoard(nb);setTurn(nt);setLastMov(nl);setCapW(nw);setCapB(nb2);
     setMovN(mc);setSel(null);setHints([]);setCR(ncr);setEP(nep);
-    pushMov(nb,nt,nl,nw,nb2,gw,mc,ncr,nep,wtSec,btSec);
+    setHalf(nh);setPosHist(nhist);
+    pushMov(nb,nt,nl,nw,nb2,gw,mc,ncr,nep,wtSec,btSec,nh,nhist);
   }
 
   const handleSq=useCallback((r:number,c:number)=>{
@@ -510,7 +531,7 @@ export default function ChessPage() {
 .htitle{font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.01em;}
 .bkl{font-size:0.76rem;font-weight:600;color:rgba(255,255,255,0.28);text-decoration:none;transition:color 0.15s;text-align:right;}
 .bkl:hover{color:#fff;}
-.mn{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.55rem;padding:0.65rem 0.5rem 1rem;}
+.mn{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.55rem;padding:0.65rem 0.5rem max(1rem,env(safe-area-inset-bottom));}
 .idl{display:flex;flex-direction:column;align-items:center;gap:0.75rem;}
 .tcr{display:flex;gap:0.4rem;}
 .tcb{padding:0.3rem 0.9rem;border-radius:999px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:rgba(255,255,255,0.4);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
@@ -547,8 +568,8 @@ export default function ChessPage() {
 .capl{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;min-width:5rem;}
 .caps{display:flex;flex-wrap:wrap;gap:1px;}
 .bwp{user-select:none;display:flex;align-items:center;justify-content:center;width:100%;}
-.bd{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:min(calc(100svw - 12px),calc(100svh - 200px),560px);height:min(calc(100svw - 12px),calc(100svh - 200px),560px);border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,0.1),0 0 0 5px rgba(255,255,255,0.04),0 32px 100px rgba(0,0,0,0.8);}
-.cs{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;padding:0;outline:none;transition:filter 0.07s;-webkit-tap-highlight-color:transparent;}
+.bd{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:min(calc(100svw - 12px),calc(100svh - 200px),560px);height:min(calc(100svw - 12px),calc(100svh - 200px),560px);border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,0.1),0 0 0 5px rgba(255,255,255,0.04),0 32px 100px rgba(0,0,0,0.8);container-type:inline-size;}
+.cs{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;padding:0;outline:none;transition:filter 0.07s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .cs:disabled{cursor:default;}
 .cs:not(:disabled):hover{filter:brightness(1.13);}
 .bd[data-theme="classic"] .cl{background:#f0d9b5;}.bd[data-theme="classic"] .cd{background:#b58863;}
@@ -569,7 +590,7 @@ export default function ChessPage() {
 .hrng{position:absolute;inset:0;border-radius:50%;border:min(5px,1.5vw) solid rgba(0,0,0,0.22);pointer-events:none;z-index:2;animation:hpop 0.18s cubic-bezier(0.34,1.8,0.64,1) both,hpls 1.6s ease-in-out 0.2s infinite;}
 @keyframes hpop{0%{transform:scale(0);opacity:0;}60%{transform:scale(1.12);opacity:1;}100%{transform:scale(1);opacity:1;}}
 @keyframes hpls{0%,100%{opacity:1;}50%{opacity:0.6;}}
-.cp{font-size:clamp(1.4rem,calc((100svw - 12px)*0.093),3.9rem);line-height:1;z-index:3;position:relative;display:block;will-change:transform;transition:transform 0.14s cubic-bezier(0.34,1.56,0.64,1),filter 0.1s;font-family:'Segoe UI Symbol','Noto Chess','DejaVu Sans',serif;}
+.cp{font-size:min(9.6cqi,3.6rem);line-height:1;z-index:3;position:relative;display:block;will-change:transform;transition:transform 0.14s cubic-bezier(0.34,1.56,0.64,1),filter 0.1s;font-family:'Segoe UI Symbol','Noto Chess','DejaVu Sans',serif;}
 .cs:hover:not(:disabled) .cp{transform:scale(1.1);}
 .cpl{transform:scale(1.25)!important;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.75)) drop-shadow(0 0 18px rgba(255,255,255,0.2));z-index:10;}
 .cp-w{color:#fff;-webkit-text-stroke:1.5px #2a2a2a;paint-order:stroke fill;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));}
@@ -586,7 +607,7 @@ export default function ChessPage() {
 @media (min-width:1024px){.bd{width:min(calc(100svh - 230px),600px);height:min(calc(100svh - 230px),600px);}}
 @media (orientation:landscape) and (max-height:520px){
   .mn{flex-direction:row;flex-wrap:wrap;align-items:flex-start;padding:0.4rem;gap:0.4rem;}
-  .bd{width:min(calc(100svh - 80px),calc(60svw - 10px),380px);height:min(calc(100svh - 80px),calc(60svw - 10px),380px);}
+  .bd{width:min(calc(100svh - 80px),calc(60svw - 10px),430px);height:min(calc(100svh - 80px),calc(60svw - 10px),430px);}
   .sbar,.clks,.cap,.ctrls{max-width:calc(40svw - 10px);}
 }
 @media (max-width:360px){.bd{width:calc(100svw - 8px);height:calc(100svw - 8px);}.thl{display:none;}}

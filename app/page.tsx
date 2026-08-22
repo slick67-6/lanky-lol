@@ -1,22 +1,22 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { ParticlesBackground } from "@/components/particles-background";
-import { AuroraBackground, ScrollProgress } from "@/components/fx/background-fx";
+import { ScrollProgress } from "@/components/fx/background-fx";
 import { FlipWords, Marquee, NumberTicker, Reveal } from "@/components/fx/motion";
 import { BorderBeamCard, Sparkles } from "@/components/fx/effects";
 
 const CAPABILITIES = [
-  ["♟️", "Instant chess matchmaking"],
-  ["📄", "PDF · DOCX · PPTX · XLSX"],
-  ["💬", "Chat with your documents"],
-  ["🧠", "Auto notes & quizzes"],
-  ["🖼️", "Image & screenshot analysis"],
-  ["🔒", "Zero accounts"],
-  ["🎨", "Custom themes"],
-  ["⌨️", "⌘K everywhere"],
+  ["â™Ÿï¸", "Instant chess matchmaking"],
+  ["ðŸ“„", "PDF Â· DOCX Â· PPTX Â· XLSX"],
+  ["ðŸ’¬", "Chat with your documents"],
+  ["ðŸ§ ", "Auto notes & quizzes"],
+  ["ðŸ–¼ï¸", "Image & screenshot analysis"],
+  ["ðŸ”’", "Zero accounts"],
+  ["ðŸŽ¨", "Custom themes"],
+  ["âŒ¨ï¸", "âŒ˜K everywhere"],
 ];
 
 const STATS = [
@@ -24,43 +24,6 @@ const STATS = [
   { to: 1.8, decimals: 1, suffix: "s", label: "Avg. pairing time" },
   { to: 4, suffix: "", label: "Study modes per doc" },
   { to: 100, suffix: "%", label: "Free forever" },
-];
-
-const QUOTES_ROW_1 = [
-  { text: "Found an opponent in under two seconds. I closed three other chess apps after trying this.", name: "Sara K.", role: "1800 rapid", initial: "S" },
-  { text: "Uploaded a 40-page PDF before my seminar and walked in with full notes and a quiz. Unreal.", name: "Diego R.", role: "Grad student", initial: "D" },
-  { text: "The chat tab answers like it actually read the whole document — because it did.", name: "Lena O.", role: "Design lead", initial: "L" },
-  { text: "No sign-up, no ads, no nonsense. Just chess and genuinely useful AI tools.", name: "Jae P.", role: "Indie hacker", initial: "J" },
-];
-
-const QUOTES_ROW_2 = [
-  { text: "The vision analyser read my handwritten lab notes better than I could.", name: "Rio T.", role: "Researcher", initial: "R" },
-  { text: "⌘K opens everything. It's the little things that make this feel premium.", name: "Emma N.", role: "Product manager", initial: "E" },
-  { text: "Switched to the AMOLED theme and now it's my late-night chess home.", name: "Tomas V.", role: "Night owl", initial: "T" },
-  { text: "Pairing, playing, rematching — zero friction. This is how online chess should feel.", name: "Nia A.", role: "Club player", initial: "N" },
-];
-
-const FAQS = [
-  {
-    q: "How does chess matchmaking work?",
-    a: "Hit Find a Match and you're paired with a real opponent automatically — no rooms, no lobbies, no accounts. Pick a time control (1, 5 or 10 minutes) and you're playing within seconds.",
-  },
-  {
-    q: "What can the AI analysers do?",
-    a: "The Image Analyser reads screenshots, photos, diagrams and handwriting. The Document Workspace turns PDF, DOCX, PPTX and XLSX files into four study modes — key notes, answers, quizzes and a full chat where you can ask anything about the content.",
-  },
-  {
-    q: "Is lanky.lol really free?",
-    a: "Yes — every feature is free, with no sign-up wall and no hidden limits. Chess, both analysers and every study mode run without an account.",
-  },
-  {
-    q: "Do you store my uploads?",
-    a: "Files are parsed locally in your browser where possible, and processed for your session only. Nothing is pinned to a profile because there are no profiles — close the tab and it's gone.",
-  },
-  {
-    q: "Does it work on mobile?",
-    a: "Yes. The board, analysers and animations are tuned for touch and small screens, with reduced particle density so everything stays smooth on phones.",
-  },
 ];
 
 function ShimmerLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -95,7 +58,7 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: React.Re
       >
         {eyebrow}
       </span>
-      <h2 className="font-[family-name:var(--font-syne)] text-3xl font-bold leading-[1.25] tracking-normal text-white sm:text-[2.6rem]">
+      <h2 className="text-[1.9rem] font-bold leading-[1.3] tracking-normal text-white sm:text-4xl">
         {title}
       </h2>
       {sub && <p className="mx-auto mt-4 max-w-lg leading-relaxed text-white/40">{sub}</p>}
@@ -105,9 +68,9 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: React.Re
 
 function PairingLog() {
   const rows = [
-    { label: "search.pool.join()", detail: "queued · elo ±120" },
-    { label: "opponent.found", detail: "1.8s · guest-2841" },
-    { label: "game.start", detail: "5+0 rapid · white" },
+    { label: "search.pool.join()", detail: "queued Â· elo Â±120" },
+    { label: "opponent.found", detail: "1.8s Â· guest-2841" },
+    { label: "game.start", detail: "5+0 rapid Â· white" },
   ];
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/40 p-4 font-mono text-xs leading-loose sm:text-[12.5px]">
@@ -155,7 +118,7 @@ function ChatDemo() {
     <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-black/40">
       <div className="flex items-center gap-2 border-b border-white/[0.07] px-4 py-2.5">
         <span className="h-2 w-2 rounded-full bg-emerald-400" />
-        <span className="text-[11px] font-semibold text-white/45">thesis.pdf — Chat tab</span>
+        <span className="text-[11px] font-semibold text-white/45">thesis.pdf â€” Chat tab</span>
         <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/30">4 / 24 pages read</span>
       </div>
       <div className="flex min-h-[190px] flex-col justify-end gap-2.5 p-4">
@@ -179,27 +142,10 @@ function ChatDemo() {
           }}
         >
           Chapter 3 argues that distributed teams outperform co-located ones after year one.
-          <span className="mt-1 block text-white/60">Ready for your quiz — 5 questions?</span>
+          <span className="mt-1 block text-white/60">Ready for your quiz â€” 5 questions?</span>
         </div>
       </div>
     </div>
-  );
-}
-
-function QuoteCard({ quote }: { quote: (typeof QUOTES_ROW_1)[number] }) {
-  return (
-    <figure className="w-[320px] shrink-0 rounded-3xl border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-sm transition-colors hover:border-white/[0.16] sm:w-[400px]">
-      <blockquote className="mb-5 text-[15px] leading-relaxed text-slate-200/85">&ldquo;{quote.text}&rdquo;</blockquote>
-      <figcaption className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-[#030712]" style={{ background: "var(--accent-primary)" }}>
-          {quote.initial}
-        </span>
-        <span className="flex flex-col leading-tight">
-          <strong className="text-sm font-semibold text-white/85">{quote.name}</strong>
-          <em className="text-xs not-italic text-white/30">{quote.role}</em>
-        </span>
-      </figcaption>
-    </figure>
   );
 }
 
@@ -214,22 +160,20 @@ export default function HomePage() {
 
         <main className="flex-1">
 
-          {/* ── 1 · Hero ── */}
+          {/* â”€â”€ 1 Â· Hero â”€â”€ */}
           <section className="relative flex flex-col items-center overflow-hidden px-6 pb-20 pt-24 text-center">
-            <AuroraBackground />
-
-            <div className="relative z-[3] mx-auto max-w-3xl">
+                        <div className="relative z-[3] mx-auto max-w-3xl">
               <div className="animate-slide-up anim-delay-0 mb-7 inline-flex items-center gap-2.5 rounded-full border border-white/[0.14] bg-white/[0.05] px-4 py-1.5 text-xs font-semibold text-white/55 backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Online chess matchmaking is live
               </div>
 
-              <h1 className="animate-slide-up anim-delay-1 mb-6 font-[family-name:var(--font-syne)] text-[2.6rem] font-extrabold leading-[1.18] tracking-normal text-white sm:text-6xl lg:text-[4.4rem]">
+              <h1 className="animate-slide-up anim-delay-1 mb-6 text-[2.6rem] font-extrabold leading-[1.28] tracking-normal text-white sm:text-6xl lg:text-[4.4rem]">
                 Play chess.
                 <br />
                 Study smarter.
                 <br />
-                No account — just <FlipWords />
+                No account â€” just <FlipWords />
               </h1>
 
               <p className="animate-slide-up anim-delay-2 mx-auto mb-10 max-w-xl text-base leading-relaxed text-white/45 sm:text-lg">
@@ -239,19 +183,19 @@ export default function HomePage() {
 
               <div className="animate-slide-up anim-delay-3 mb-10 flex flex-wrap items-center justify-center gap-3">
                 <ShimmerLink href="/chess">
-                  ♟ Play chess
+                  â™Ÿ Play chess
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </ShimmerLink>
                 <Link
                   href="/analyser/document"
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.15] bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.09] hover:text-white"
                 >
-                  💬 Open AI analyser
+                  ðŸ’¬ Open AI analyser
                 </Link>
               </div>
 
               <p className="animate-slide-up anim-delay-4 text-xs font-medium tracking-wide text-white/25">
-                No downloads · No sign-up · No ads
+                No downloads Â· No sign-up Â· No ads
               </p>
             </div>
 
@@ -259,7 +203,7 @@ export default function HomePage() {
               <BorderBeamCard className="rounded-3xl">
                 <div className="overflow-hidden rounded-3xl border border-white/[0.12] shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl" style={{ background: "linear-gradient(160deg, rgba(18,22,40,0.85), rgba(8,10,22,0.88))" }}>
                   <div className="flex items-center gap-2 border-b border-white/[0.08] px-5 py-3">
-                    ♟ <span className="text-sm font-bold text-white">Lanky Chess</span>
+                    â™Ÿ <span className="text-sm font-bold text-white">Lanky Chess</span>
                     <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-black tracking-[0.14em] text-emerald-300">
                       LIVE
                     </span>
@@ -267,10 +211,10 @@ export default function HomePage() {
                   <div className="p-5 text-left">
                     <PairingLog />
                     <p className="mt-4 text-xs leading-relaxed text-white/35">
-                      Click Find a Match → paired automatically. 1, 5 or 10 minute clocks, instant rematch.
+                      Click Find a Match â†’ paired automatically. 1, 5 or 10 minute clocks, instant rematch.
                     </p>
                     <Link href="/chess" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:brightness-125" style={{ color: "var(--accent-primary)" }}>
-                      Find a match now →
+                      Find a match now â†’
                     </Link>
                   </div>
                 </div>
@@ -278,8 +222,8 @@ export default function HomePage() {
 
               <div className="group overflow-hidden rounded-3xl border border-white/[0.12] shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-all hover:-translate-y-1 hover:border-white/[0.22]" style={{ background: "linear-gradient(160deg, rgba(18,22,40,0.85), rgba(8,10,22,0.88))" }}>
                 <div className="flex items-center gap-2 border-b border-white/[0.08] px-5 py-3">
-                  📄 <span className="text-sm font-bold text-white">AI Analyser Suite</span>
-                  <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/35">⌘K</span>
+                  ðŸ“„ <span className="text-sm font-bold text-white">AI Analyser Suite</span>
+                  <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[10px] text-white/35">âŒ˜K</span>
                 </div>
                 <div className="p-5 text-left">
                   <div className="mb-3 flex flex-wrap gap-1.5">
@@ -295,20 +239,20 @@ export default function HomePage() {
                   </div>
                   <ChatDemo />
                   <Link href="/analyser/document" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:brightness-125" style={{ color: "var(--accent-primary)" }}>
-                    Upload a document →
+                    Upload a document â†’
                   </Link>
                 </div>
               </div>
             </Reveal>
           </section>
 
-          {/* ── 2 · Capability marquee ── */}
+          {/* â”€â”€ 2 Â· Capability marquee â”€â”€ */}
           <section className="border-y border-white/[0.07] bg-white/[0.015] py-9">
             <Marquee>
               {CAPABILITIES.map(([icon, label]) => (
                 <span
                   key={label}
-                  className="whitespace-nowrap rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-3 font-[family-name:var(--font-syne)] text-base font-semibold text-white/45 transition-colors hover:border-white/25 hover:text-white/90"
+                  className="whitespace-nowrap rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-3 text-base font-semibold text-white/45 transition-colors hover:border-white/25 hover:text-white/90"
                 >
                   {icon} {label}
                 </span>
@@ -316,7 +260,7 @@ export default function HomePage() {
             </Marquee>
           </section>
 
-          {/* ── 3 · How it works ── */}
+          {/* â”€â”€ 3 Â· How it works â”€â”€ */}
           <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-24">
             <SectionHead
               eyebrow="HOW IT WORKS"
@@ -327,7 +271,7 @@ export default function HomePage() {
             <div className="grid gap-5 lg:grid-cols-2">
               <Reveal scale>
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl">
-                  <h3 className="mb-6 font-[family-name:var(--font-syne)] text-lg font-bold text-white">♟ The chess lane</h3>
+                  <h3 className="mb-6 text-lg font-bold text-white">â™Ÿ The chess lane</h3>
                   <ol className="space-y-5">
                     {[
                       ["Pick a clock", "1, 5 or 10 minutes per side."],
@@ -350,12 +294,12 @@ export default function HomePage() {
 
               <Reveal scale delay={100}>
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl">
-                  <h3 className="mb-6 font-[family-name:var(--font-syne)] text-lg font-bold text-white">💬 The study lane</h3>
+                  <h3 className="mb-6 text-lg font-bold text-white">ðŸ’¬ The study lane</h3>
                   <ol className="space-y-5">
                     {[
-                      ["Drop a file", "PDF, DOCX, PPTX or XLSX — or an image for vision analysis."],
+                      ["Drop a file", "PDF, DOCX, PPTX or XLSX â€” or an image for vision analysis."],
                       ["Get the study pack", "Key notes, worked answers and a quiz generated instantly."],
-                      ["Ask anything", "The Chat tab answers from the actual document — formulas included."],
+                      ["Ask anything", "The Chat tab answers from the actual document â€” formulas included."],
                     ].map(([t, d], i) => (
                       <li key={t} className="flex gap-4">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-bold" style={{ borderColor: "color-mix(in srgb, var(--accent-primary) 40%, transparent)", color: "var(--accent-primary)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)" }}>
@@ -373,13 +317,13 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── 4 · Stats ── */}
+          {/* â”€â”€ 4 Â· Stats â”€â”€ */}
           <section className="mx-auto w-full max-w-5xl px-6 pb-24">
             <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
               {STATS.map((s, i) => (
                 <Reveal key={s.label} scale delay={i * 80}>
                   <div className="rounded-[24px] border border-white/[0.09] bg-white/[0.03] p-7 text-center transition-all hover:-translate-y-1.5 hover:border-white/[0.2]">
-                    <div className="font-[family-name:var(--font-syne)] text-4xl font-extrabold tracking-normal gradient-flow-text">
+                    <div className="text-4xl font-extrabold tracking-normal gradient-flow-text">
                       <NumberTicker to={s.to} decimals={s.decimals} suffix={s.suffix} />
                     </div>
                     <div className="mt-2 text-xs font-medium text-white/30">{s.label}</div>
@@ -389,33 +333,33 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── 5 · Feature bento ── */}
+          {/* â”€â”€ 5 Â· Feature bento â”€â”€ */}
           <section className="mx-auto w-full max-w-6xl px-6 pb-24">
             <SectionHead
               eyebrow="UNDER THE HOOD"
               title={<>Small details,<br /><span className="gradient-flow-text">everywhere.</span></>}
-              sub="The polish isn't just on the surface — it's baked into how every interaction feels."
+              sub="The polish isn't just on the surface â€” it's baked into how every interaction feels."
             />
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <Reveal scale className="md:col-span-2">
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.04] p-8 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.06]">
                   <div className="mb-5 flex h-fit w-fit items-center justify-center rounded-2xl p-3.5 text-3xl" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)", boxShadow: "0 0 24px color-mix(in srgb, var(--accent-primary) 25%, transparent)" }}>
-                    ♟
+                    â™Ÿ
                   </div>
-                  <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">Full rules engine</h3>
+                  <h3 className="text-xl font-bold text-white">Full rules engine</h3>
                   <p className="mt-2 max-w-md text-sm leading-relaxed text-white/40">
-                    Check, checkmate, stalemate, en-passant, castling and promotion — all enforced server-side with 1/5/10 minute clocks.
+                    Check, checkmate, stalemate, en-passant, castling and promotion â€” all enforced server-side with 1/5/10 minute clocks.
                   </p>
                 </div>
               </Reveal>
 
               <Reveal scale delay={90}>
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-7 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.055]">
-                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">🖼️</div>
-                  <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">Vision Analyser</h3>
+                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">ðŸ–¼ï¸</div>
+                  <h3 className="text-xl font-bold text-white">Vision Analyser</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/40">
-                    Screenshots, diagrams, handwriting — analysed in seconds.
+                    Screenshots, diagrams, handwriting â€” analysed in seconds.
                   </p>
                 </div>
               </Reveal>
@@ -423,9 +367,9 @@ export default function HomePage() {
               <Reveal scale delay={140}>
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-7 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.055]">
                   <div className="mb-5 inline-flex items-center gap-1.5 rounded-xl border border-white/[0.12] bg-black/40 px-3 py-1.5 font-mono text-xs text-white/60">
-                    ⌘ K
+                    âŒ˜ K
                   </div>
-                  <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">Command palette</h3>
+                  <h3 className="text-xl font-bold text-white">Command palette</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/40">
                     Every corner of the site is one keystroke away.
                   </p>
@@ -436,10 +380,10 @@ export default function HomePage() {
                 <div className="h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-8 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.05]">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="max-w-sm">
-                      <div className="mb-5 inline-flex rounded-2xl bg-white/[0.06] p-3.5 text-2xl">🎨</div>
-                      <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">Make it yours</h3>
+                      <div className="mb-5 inline-flex rounded-2xl bg-white/[0.06] p-3.5 text-2xl">ðŸŽ¨</div>
+                      <h3 className="text-xl font-bold text-white">Make it yours</h3>
                       <p className="mt-2 text-sm leading-relaxed text-white/40">
-                        Accent palettes, AMOLED black, true light mode — the entire interface bends to your taste, saved locally.
+                        Accent palettes, AMOLED black, true light mode â€” the entire interface bends to your taste, saved locally.
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -453,49 +397,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── 6 · Testimonials ── */}
-          <section className="pb-24">
-            <SectionHead
-              eyebrow="WALL OF LOVE"
-              title={<>Players &amp; students<br /><span className="gradient-flow-text">keep coming back.</span></>}
-            />
-            <div className="space-y-5">
-              <Marquee slow>
-                {QUOTES_ROW_1.map((q) => (
-                  <QuoteCard key={q.name} quote={q} />
-                ))}
-              </Marquee>
-              <Marquee slow reverse>
-                {QUOTES_ROW_2.map((q) => (
-                  <QuoteCard key={q.name} quote={q} />
-                ))}
-              </Marquee>
-            </div>
-          </section>
-
-          {/* ── 7 · FAQ ── */}
-          <section className="mx-auto w-full max-w-3xl px-6 pb-24">
-            <SectionHead eyebrow="FAQ" title={<>Questions?<br /><span className="gradient-flow-text">Answered.</span></>} />
-            <Reveal delay={100} className="space-y-3.5">
-              {FAQS.map((f, i) => (
-                <details
-                  key={f.q}
-                  open={i === 0}
-                  className="group overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.03] transition-colors open:border-white/[0.18] open:bg-white/[0.05]"
-                >
-                  <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-4 px-6 py-5 font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
-                    {f.q}
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" className="shrink-0 text-white/30 transition-transform duration-300 group-open:rotate-180 group-open:text-white/70">
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </summary>
-                  <p className="animate-slide-up px-6 pb-6 text-sm leading-relaxed text-white/45">{f.a}</p>
-                </details>
-              ))}
-            </Reveal>
-          </section>
-
-          {/* ── 8 · CTA ── */}
+          {/* â”€â”€ 6 Â· CTA â”€â”€ */}
           <section className="px-6 pb-24">
             <Reveal scale>
               <div
@@ -507,19 +409,19 @@ export default function HomePage() {
               >
                 <Sparkles />
                 <div className="relative z-[2] mx-auto max-w-xl px-8 py-20 text-center">
-                  <h2 className="font-[family-name:var(--font-syne)] text-3xl font-bold leading-[1.25] tracking-normal text-white sm:text-5xl">
+                  <h2 className="text-[1.9rem] font-bold leading-[1.3] tracking-normal text-white sm:text-4xl">
                     An opponent is queued.<br /><span className="gradient-flow-text">Your move.</span>
                   </h2>
                   <p className="mx-auto mt-4 max-w-sm text-white/45">
                     Free forever, no card, no account. Bring a document if you want.
                   </p>
                   <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-                    <ShimmerLink href="/chess">♟ Play now</ShimmerLink>
+                    <ShimmerLink href="/chess">â™Ÿ Play now</ShimmerLink>
                     <Link
                       href="/analyser/image"
                       className="rounded-2xl border border-white/[0.15] bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 transition-all hover:-translate-y-0.5 hover:border-white/30 hover:text-white"
                     >
-                      🖼️ Analyse an image
+                      ðŸ–¼ï¸ Analyse an image
                     </Link>
                   </div>
                 </div>
@@ -530,7 +432,7 @@ export default function HomePage() {
 
         <footer className="border-t border-white/[0.06] px-6 py-8">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
-            <p className="text-xs text-white/20">© 2026 lanky.lol — crafted with obsession.</p>
+            <p className="text-xs text-white/20">Â© 2026 lanky.lol â€” crafted with obsession.</p>
             <div className="flex gap-6 text-xs font-medium text-white/25">
               <Link href="/chess" className="transition-colors hover:text-white/60">Chess</Link>
               <Link href="/analyser/image" className="transition-colors hover:text-white/60">Vision</Link>
