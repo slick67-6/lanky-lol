@@ -156,13 +156,13 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 .aurora-blob-2 {
   width: 54vw; height: 54vw; max-width: 740px; max-height: 740px;
   top: -10%; right: -16%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 34%, rgba(124,58,237,0.5)), transparent 62%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 26%, transparent), transparent 62%);
   animation: aurora-drift-2 32s ease-in-out infinite alternate;
 }
 .aurora-blob-3 {
   width: 46vw; height: 46vw; max-width: 680px; max-height: 680px;
   bottom: -34%; left: 30%;
-  background: radial-gradient(circle, color-mix(in srgb, #f472b6 30%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 16%, transparent), transparent 60%);
   animation: aurora-drift-3 38s ease-in-out infinite alternate;
 }
 
@@ -174,30 +174,6 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
   background-size: 56px 56px;
   mask-image: radial-gradient(ellipse 78% 62% at 50% 36%, black 20%, transparent 76%);
   -webkit-mask-image: radial-gradient(ellipse 78% 62% at 50% 36%, black 20%, transparent 76%);
-}
-
-.meteors-host {
-  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
-}
-.meteor-streak {
-  position: absolute; top: -10%;
-  width: 2px; height: 140px;
-  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent-primary) 85%, white));
-  opacity: 0;
-  animation: meteor-fall 8s linear infinite;
-}
-.meteor-streak::after {
-  content: "";
-  position: absolute; top: -3px; left: -1.5px;
-  width: 5px; height: 5px; border-radius: 50%;
-  background: #e6ecff;
-  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--accent-primary) 70%, white);
-}
-@keyframes meteor-fall {
-  0%   { transform: rotate(215deg) translateX(0);     opacity: 0; }
-  6%   { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { transform: rotate(215deg) translateX(-120vh); opacity: 0; }
 }
 
 .marquee {
@@ -224,7 +200,7 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
   padding-right: 4px;
   border-right: 3px solid var(--accent-primary);
   animation: caret-blink 1.15s step-end infinite;
-  background: linear-gradient(90deg, var(--accent-primary), #a78bfa, #f472b6, var(--accent-primary));
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 45%, white), var(--accent-primary));
   background-size: 280% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -247,7 +223,7 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 }
 
 .gradient-flow-text {
-  background: linear-gradient(90deg, var(--accent-primary), #a78bfa, #f472b6, var(--accent-primary));
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 45%, white), var(--accent-primary));
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -294,9 +270,9 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
   background: conic-gradient(
     from 0deg,
     transparent 0deg 318deg,
-    color-mix(in srgb, var(--accent-primary) 12%, transparent) 330deg,
+    color-mix(in srgb, var(--accent-primary) 14%, transparent) 330deg,
     var(--accent-primary) 350deg,
-    #a78bfa 360deg
+    color-mix(in srgb, var(--accent-primary) 60%, white) 360deg
   );
   animation: beam-spin var(--beam-duration, 4.5s) linear infinite;
 }
@@ -321,7 +297,11 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora-blob, .meteor-streak, .marquee-track, .beam-conic, .flip-word, .gradient-flow-text {
+  .aurora-blob, .marquee-track, .beam-conic, .flip-word, .gradient-flow-text {
     animation: none !important;
+  }
+  .chat-demo-bubble {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
