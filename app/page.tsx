@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -9,14 +9,14 @@ import { FlipWords, Marquee, NumberTicker, Reveal } from "@/components/fx/motion
 import { BorderBeamCard, Sparkles } from "@/components/fx/effects";
 
 const CAPABILITIES = [
-  ["â™Ÿï¸", "Instant chess matchmaking"],
-  ["ðŸ“„", "PDF Â· DOCX Â· PPTX Â· XLSX"],
+  ["â™Ÿ️", "Instant chess matchmaking"],
+  ["ðŸ“„", "PDF · DOCX · PPTX · XLSX"],
   ["ðŸ’¬", "Chat with your documents"],
   ["ðŸ§ ", "Auto notes & quizzes"],
-  ["ðŸ–¼ï¸", "Image & screenshot analysis"],
+  ["ðŸ–¼️", "Image & screenshot analysis"],
   ["ðŸ”’", "Zero accounts"],
   ["ðŸŽ¨", "Custom themes"],
-  ["âŒ¨ï¸", "âŒ˜K everywhere"],
+  ["âŒ¨️", "âŒ˜K everywhere"],
 ];
 
 const STATS = [
@@ -68,9 +68,9 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: React.Re
 
 function PairingLog() {
   const rows = [
-    { label: "search.pool.join()", detail: "queued Â· elo Â±120" },
-    { label: "opponent.found", detail: "1.8s Â· guest-2841" },
-    { label: "game.start", detail: "5+0 rapid Â· white" },
+    { label: "search.pool.join()", detail: "queued · elo ±120" },
+    { label: "opponent.found", detail: "1.8s · guest-2841" },
+    { label: "game.start", detail: "5+0 rapid · white" },
   ];
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-black/40 p-4 font-mono text-xs leading-loose sm:text-[12.5px]">
@@ -160,7 +160,7 @@ export default function HomePage() {
 
         <main className="flex-1">
 
-          {/* â”€â”€ 1 Â· Hero â”€â”€ */}
+          {/* â”€â”€ 1 · Hero â”€â”€ */}
           <section className="relative flex flex-col items-center overflow-hidden px-6 pb-20 pt-24 text-center">
                         <div className="relative z-[3] mx-auto max-w-3xl">
               <div className="animate-slide-up anim-delay-0 mb-7 inline-flex items-center gap-2.5 rounded-full border border-white/[0.14] bg-white/[0.05] px-4 py-1.5 text-xs font-semibold text-white/55 backdrop-blur-sm">
@@ -195,7 +195,7 @@ export default function HomePage() {
               </div>
 
               <p className="animate-slide-up anim-delay-4 text-xs font-medium tracking-wide text-white/25">
-                No downloads Â· No sign-up Â· No ads
+                No downloads · No sign-up · No ads
               </p>
             </div>
 
@@ -246,7 +246,7 @@ export default function HomePage() {
             </Reveal>
           </section>
 
-          {/* â”€â”€ 2 Â· Capability marquee â”€â”€ */}
+          {/* â”€â”€ 2 · Capability marquee â”€â”€ */}
           <section className="border-y border-white/[0.07] bg-white/[0.015] py-9">
             <Marquee>
               {CAPABILITIES.map(([icon, label]) => (
@@ -260,7 +260,7 @@ export default function HomePage() {
             </Marquee>
           </section>
 
-          {/* â”€â”€ 3 Â· How it works â”€â”€ */}
+          {/* â”€â”€ 3 · How it works â”€â”€ */}
           <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-24">
             <SectionHead
               eyebrow="HOW IT WORKS"
@@ -317,7 +317,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* â”€â”€ 4 Â· Stats â”€â”€ */}
+          {/* â”€â”€ 4 · Stats â”€â”€ */}
           <section className="mx-auto w-full max-w-5xl px-6 pb-24">
             <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
               {STATS.map((s, i) => (
@@ -333,7 +333,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* â”€â”€ 5 Â· Feature bento â”€â”€ */}
+          {/* â”€â”€ 5 · Feature bento â”€â”€ */}
           <section className="mx-auto w-full max-w-6xl px-6 pb-24">
             <SectionHead
               eyebrow="UNDER THE HOOD"
@@ -356,7 +356,7 @@ export default function HomePage() {
 
               <Reveal scale delay={90}>
                 <div className="group h-full rounded-[28px] border border-white/[0.1] bg-white/[0.035] p-7 backdrop-blur-xl transition-all hover:-translate-y-1.5 hover:border-white/[0.2] hover:bg-white/[0.055]">
-                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">ðŸ–¼ï¸</div>
+                  <div className="mb-5 inline-flex rounded-2xl bg-cyan-400/10 p-3.5 text-2xl shadow-[0_0_22px_color-mix(in_srgb,var(--accent-primary)_20%,transparent)]">ðŸ–¼️</div>
                   <h3 className="text-xl font-bold text-white">Vision Analyser</h3>
                   <p className="mt-2 text-sm leading-relaxed text-white/40">
                     Screenshots, diagrams, handwriting â€” analysed in seconds.
@@ -397,7 +397,7 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* â”€â”€ 6 Â· CTA â”€â”€ */}
+          {/* â”€â”€ 6 · CTA â”€â”€ */}
           <section className="px-6 pb-24">
             <Reveal scale>
               <div
@@ -421,7 +421,7 @@ export default function HomePage() {
                       href="/analyser/image"
                       className="rounded-2xl border border-white/[0.15] bg-white/[0.05] px-7 py-3.5 text-sm font-semibold text-white/70 transition-all hover:-translate-y-0.5 hover:border-white/30 hover:text-white"
                     >
-                      ðŸ–¼ï¸ Analyse an image
+                      ðŸ–¼️ Analyse an image
                     </Link>
                   </div>
                 </div>
@@ -432,7 +432,7 @@ export default function HomePage() {
 
         <footer className="border-t border-white/[0.06] px-6 py-8">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
-            <p className="text-xs text-white/20">Â© 2026 lanky.lol â€” crafted with obsession.</p>
+            <p className="text-xs text-white/20">© 2026 lanky.lol â€” crafted with obsession.</p>
             <div className="flex gap-6 text-xs font-medium text-white/25">
               <Link href="/chess" className="transition-colors hover:text-white/60">Chess</Link>
               <Link href="/analyser/image" className="transition-colors hover:text-white/60">Vision</Link>

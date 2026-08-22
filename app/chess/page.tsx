@@ -436,8 +436,8 @@ export default function ChessPage() {
         {toast&&<div className={`tst tst-${toast.type}`}>{toast.msg}</div>}
         <header className="hdr">
           <Link href="/" className="brand"><span className="bdt">L</span><span>lanky.lol</span></Link>
-          <div className="hc"><span className="htitle">\u265f Lanky Chess</span></div>
-          <Link href="/analyser/image" className="bkl">AI Tools \u2192</Link>
+          <div className="hc"><span className="htitle">{"\u265F"} Lanky Chess</span></div>
+          <Link href="/analyser/image" className="bkl">AI Tools {"\u2192"}</Link>
         </header>
         <main className="mn">
           <div className="sbar">
@@ -454,7 +454,7 @@ export default function ChessPage() {
             {status==="searching"&&(
               <div className="srch">
                 <span className="pd"/>
-                <span>Finding opponent\u2026</span>
+                <span>Finding opponent{"\u2026"}</span>
                 <button className="gbtn" onClick={cancelSearch}>Cancel</button>
               </div>
             )}
@@ -462,14 +462,14 @@ export default function ChessPage() {
               <div className="gbar">
                 <div className="cbdg"><span className={`cdot cdot-${myCol}`}/><span>{myCol==="w"?"White":"Black"}</span></div>
                 <div className={`trn${isMT?" tra":movLk?" trs":""}`}>
-                  {isMT?"Your move":movLk?<><span className="pd pds"/>Sent\u2026</>:"Opponent"}
+                  {isMT?"Your move":movLk?<><span className="pd pds"/>Sent{"\u2026"}</>:"Opponent"}
                 </div>
                 <div className="mn2">Move {movN+1}</div>
               </div>
             )}
             {status==="finished"&&(
               <div className="gbar">
-                <span className="wnr">\uD83C\uDFC6 {winner}</span>
+                <span className="wnr">{"\uD83C\uDFC6"} {winner}</span>
                 <button className="pbtn" onClick={findMatch}>Play again</button>
               </div>
             )}
@@ -477,10 +477,10 @@ export default function ChessPage() {
           {status==="playing"&&(
             <div className="clks">
               <div className={`clk${myCol==="b"?" opp":" mine"}${turn==="w"&&status==="playing"?" tick":""}`}>
-                <span className="clkl">\u2654 White</span><span className="clkt">{fmt(wtSec)}</span>
+                <span className="clkl">{"\u2654 White"}</span><span className="clkt">{fmt(wtSec)}</span>
               </div>
               <div className={`clk${myCol==="w"?" opp":" mine"}${turn==="b"&&status==="playing"?" tick":""}`}>
-                <span className="clkl">\u265a Black</span><span className="clkt">{fmt(btSec)}</span>
+                <span className="clkl">{"\u265A Black"}</span><span className="clkt">{fmt(btSec)}</span>
               </div>
             </div>
           )}
