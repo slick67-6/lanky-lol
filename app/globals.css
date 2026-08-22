@@ -125,3 +125,203 @@ h1, h2, h3, h4, h5, h6 { overflow: visible; line-height: 1.35 !important; paddin
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.12); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ══ Landing FX library ═══════════════════════════════════════════════════ */
+
+@keyframes aurora-drift-1 {
+  to { transform: translate(9vw, 14vh) scale(1.2) rotate(18deg); }
+}
+@keyframes aurora-drift-2 {
+  to { transform: translate(-11vw, 18vh) scale(0.86); }
+}
+@keyframes aurora-drift-3 {
+  to { transform: translate(-6vw, -16vh) scale(1.24); }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(96px);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  will-change: transform;
+  pointer-events: none;
+}
+.aurora-blob-1 {
+  width: 62vw; height: 62vw; max-width: 880px; max-height: 880px;
+  top: -28%; left: -14%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 55%, transparent), transparent 62%);
+  animation: aurora-drift-1 26s ease-in-out infinite alternate;
+}
+.aurora-blob-2 {
+  width: 54vw; height: 54vw; max-width: 740px; max-height: 740px;
+  top: -10%; right: -16%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary) 34%, rgba(124,58,237,0.5)), transparent 62%);
+  animation: aurora-drift-2 32s ease-in-out infinite alternate;
+}
+.aurora-blob-3 {
+  width: 46vw; height: 46vw; max-width: 680px; max-height: 680px;
+  bottom: -34%; left: 30%;
+  background: radial-gradient(circle, color-mix(in srgb, #f472b6 30%, transparent), transparent 60%);
+  animation: aurora-drift-3 38s ease-in-out infinite alternate;
+}
+
+.hero-grid-overlay {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--border-col) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-col) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 78% 62% at 50% 36%, black 20%, transparent 76%);
+  -webkit-mask-image: radial-gradient(ellipse 78% 62% at 50% 36%, black 20%, transparent 76%);
+}
+
+.meteors-host {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+}
+.meteor-streak {
+  position: absolute; top: -10%;
+  width: 2px; height: 140px;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent-primary) 85%, white));
+  opacity: 0;
+  animation: meteor-fall 8s linear infinite;
+}
+.meteor-streak::after {
+  content: "";
+  position: absolute; top: -3px; left: -1.5px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #e6ecff;
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--accent-primary) 70%, white);
+}
+@keyframes meteor-fall {
+  0%   { transform: rotate(215deg) translateX(0);     opacity: 0; }
+  6%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: rotate(215deg) translateX(-120vh); opacity: 0; }
+}
+
+.marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite;
+}
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.marquee-reverse .marquee-track { animation-direction: reverse; }
+.marquee-slow .marquee-track { animation-duration: 56s; }
+@keyframes marquee-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.flip-word {
+  display: inline-block;
+  min-width: 5ch;
+  text-align: left;
+  padding-right: 4px;
+  border-right: 3px solid var(--accent-primary);
+  animation: caret-blink 1.15s step-end infinite;
+  background: linear-gradient(90deg, var(--accent-primary), #a78bfa, #f472b6, var(--accent-primary));
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@keyframes caret-blink {
+  0%, 100% { border-color: var(--accent-primary); }
+  50%      { border-color: transparent; }
+}
+.flip-word-active {
+  animation:
+    word-flip 0.45s ease both,
+    caret-blink 1.15s step-end infinite;
+}
+@keyframes word-flip {
+  0%   { opacity: 1; transform: translateY(0) rotateX(0); }
+  45%  { opacity: 0; transform: translateY(-0.35em) rotateX(70deg); }
+  55%  { opacity: 0; transform: translateY(0.35em) rotateX(-70deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+.gradient-flow-text {
+  background: linear-gradient(90deg, var(--accent-primary), #a78bfa, #f472b6, var(--accent-primary));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-flow 7s linear infinite;
+}
+@keyframes gradient-flow {
+  to { background-position: 300% 50%; }
+}
+
+.reveal-base {
+  transition: opacity 0.65s ease, transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-scale { transform: translateY(30px) scale(0.97); }
+.reveal-base:not(.reveal-scale) { transform: translateY(26px); }
+.reveal-in { opacity: 1 !important; transform: none !important; }
+
+.tilt-card {
+  transition: transform 0.25s ease-out, border-color 0.3s ease;
+  will-change: transform;
+  transform-style: preserve-3d;
+}
+
+.beam-card {
+  position: relative;
+  isolation: isolate;
+}
+.beam-ring {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask-composite: exclude;
+}
+.beam-conic {
+  position: absolute; left: 50%; top: 50%;
+  width: 230%; aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 318deg,
+    color-mix(in srgb, var(--accent-primary) 12%, transparent) 330deg,
+    var(--accent-primary) 350deg,
+    #a78bfa 360deg
+  );
+  animation: beam-spin var(--beam-duration, 4.5s) linear infinite;
+}
+@keyframes beam-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes load-slide {
+  0%   { width: 8%; }
+  60%  { width: 92%; }
+  100% { width: 8%; }
+}
+
+@keyframes cell-pulse {
+  0%, 100% { transform: scale(0.96); opacity: 0.55; }
+  50%      { transform: scale(1.03); opacity: 1; }
+}
+
+@keyframes bar-breathe {
+  0%, 100% { transform: scaleY(0.82); }
+  50%      { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob, .meteor-streak, .marquee-track, .beam-conic, .flip-word, .gradient-flow-text {
+    animation: none !important;
+  }
+}

@@ -20,24 +20,10 @@ export function CommandPalette() {
   const router = useRouter();
 
   const commands: CommandItem[] = [
-    { id: "snake", title: "Snake Classic", category: "Game", icon: "🐍", path: "/games/snake" },
-    { id: "pong", title: "Pong Battle", category: "Game", icon: "🏓", path: "/games/pong" },
-    { id: "breakout", title: "Breakout", category: "Game", icon: "🧱", path: "/games/breakout" },
-    { id: "2048", title: "2048", category: "Game", icon: "🔢", path: "/games/2048" },
-    { id: "minesweeper", title: "Minesweeper", category: "Game", icon: "💣", path: "/games/minesweeper" },
-    { id: "memory", title: "Memory Match", category: "Game", icon: "🧠", path: "/games/memory" },
-    { id: "tic-tac-toe", title: "Tic Tac Toe", category: "Game", icon: "⭕", path: "/games/tic-tac-toe" },
-    { id: "trivia", title: "Trivia Battle", category: "Game", icon: "❓", path: "/games/trivia" },
-    { id: "typing-race", title: "Typing Race (Monkeytype)", category: "Game", icon: "⌨️", path: "/games/typing-race" },
-    { id: "whack-a-mole", title: "Whack-a-Mole", category: "Game", icon: "🔨", path: "/games/whack-a-mole" },
-    { id: "flappy-bird", title: "Flappy Bird", category: "Game", icon: "🐦", path: "/games/flappy-bird" },
-    { id: "tetris", title: "Tetris Block Blast", category: "Game", icon: "🧩", path: "/games/tetris" },
-    { id: "aim-trainer", title: "Aim Trainer Precision", category: "Game", icon: "🎯", path: "/games/aim-trainer" },
-    { id: "reaction-test", title: "Reaction Time Test", category: "Game", icon: "⚡", path: "/games/reaction-test" },
-    { id: "simon-says", title: "Simon Says Sequence", category: "Game", icon: "🔔", path: "/games/simon-says" },
     { id: "chess", title: "Online Chess", category: "Game", icon: "♟️", path: "/chess" },
     { id: "img-analyser", title: "AI Vision Analyser", category: "Tool", icon: "🖼️", path: "/analyser/image" },
     { id: "doc-analyser", title: "AI Document Workspace", category: "Tool", icon: "📄", path: "/analyser/document" },
+    { id: "home", title: "Home", category: "Action", icon: "🏠", path: "/" },
     { id: "settings", title: "Open Customization Settings", category: "Action", icon: "⚙️", action: () => setIsSettingsOpen(true) },
   ];
 
@@ -84,7 +70,7 @@ export function CommandPalette() {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Type a command or search games & AI tools..."
+            placeholder="Type a command or search chess & AI tools..."
             className="w-full bg-transparent text-sm text-cyan-100 placeholder:text-slate-500 focus:outline-none"
             autoFocus
           />
@@ -118,7 +104,7 @@ export function CommandPalette() {
 
           {filteredCommands.length === 0 && (
             <div className="p-8 text-center text-sm text-slate-500">
-              No matching commands or games found.
+              No matching commands found.
             </div>
           )}
         </div>

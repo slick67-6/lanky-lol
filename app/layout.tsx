@@ -26,9 +26,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "lanky.lol | Tools & Arcade Suite 2026",
+  title: "lanky.lol | Online Chess & AI Tools 2026",
   description:
-    "The lankiest, sleekest AI vision, document analysis, and browser arcade suite — engineered for lightning speed on desktop and mobile.",
+    "Play online chess with instant matchmaking, then analyse images and documents with AI. No accounts, no friction — everything runs in your browser.",
 };
 
 export const viewport: Viewport = {

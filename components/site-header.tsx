@@ -39,7 +39,6 @@ export function SiteHeader({ title }: SiteHeaderProps) {
   const navItems = [
     { href: "/",       label: "Home"   },
     { href: "/chess",  label: "Chess"  },
-    { href: "/games",  label: "Arcade" },
     { href: "/analyser/image", label: "Tools"  },
   ];
 

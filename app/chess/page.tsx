@@ -416,7 +416,7 @@ export default function ChessPage() {
         <header className="hdr">
           <Link href="/" className="brand"><span className="bdt">L</span><span>lanky.lol</span></Link>
           <div className="hc"><span className="htitle">\u265f Lanky Chess</span></div>
-          <Link href="/games" className="bkl">Arcade \u2192</Link>
+          <Link href="/analyser/image" className="bkl">AI Tools \u2192</Link>
         </header>
         <main className="mn">
           <div className="sbar">
